@@ -41,9 +41,8 @@
 - [ ] Mi rama parte de `main` actualizado (`git pull origin main` antes de crear la rama)
 - [ ] Los commits siguen el formato `tipo(scope): descripción` definido en `CONTRIBUTING.md`
 - [ ] No incluí archivos innecesarios (`.env`, `__pycache__`, archivos del editor, etc.)
-- [ ] El documento o código cumple con la regla de negocio asignada
-- [ ] Actualicé `CHANGELOG.md` con una línea que describe este cambio
 - [ ] El PR tiene un título descriptivo que sigue la convención de commits
+- [ ] El PR tiene un titulo trazable con Jira, key del work item/issue relacionado.
 - [ ] Pasan todos los tests locales
 - [ ] La rama tiene un nombre descriptivo
 - [ ] Se eliminaron `console.log` o comentarios innecesarios
