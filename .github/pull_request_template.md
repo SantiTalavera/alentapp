@@ -42,7 +42,7 @@
 - [ ] Los commits siguen el formato `tipo(scope): descripción` definido en `CONTRIBUTING.md`
 - [ ] No incluí archivos innecesarios (`.env`, `__pycache__`, archivos del editor, etc.)
 - [ ] El PR tiene un título descriptivo que sigue la convención de commits
-- [ ] El PR tiene un titulo trazable con Jira, key del work item/issue relacionado.
+- [ ] El PR tiene un titulo trazable con Jira, key del work item/issue relacionado (TPI).
 - [ ] Pasan todos los tests locales
 - [ ] La rama tiene un nombre descriptivo
 - [ ] Se eliminaron `console.log` o comentarios innecesarios
