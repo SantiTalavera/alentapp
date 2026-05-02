@@ -17,7 +17,12 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 > _Primera entrega: Actividad 1 TP Integrador — TDDs de las 6 entidades_
 
 ### Added
-
+- `docs/TDDs/TDD_0004` TDD de la Entidad Locker: Registro de nuevo locker
+- `docs/TDDs/TDD_0005` TDD de la Entidad Locker: Baja de locker
+- `docs/TDDs/TDD_0006` TDD de la Entidad Locker: Modificación de locker
+- `docs/TDDs/TDD_0007` TDD de la Entidad Sport: Registro de nuevo deporte
+- `docs/TDDs/TDD_0008` TDD de la Entidad Sport: Modificación de nuevo deporte
+- `docs/TDDs/TDD_0009` TDD de la Entidad Sport: Baja de nuevo deporte
 
 ---
 
