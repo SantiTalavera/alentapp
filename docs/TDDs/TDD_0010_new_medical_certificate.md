@@ -41,6 +41,8 @@ Se definirá la entidad `MedicalCertificate` con las siguientes propiedades y re
 - `is_validated`: Booleano que indica si el certificado es el activo del socio. Solo puede existir un registro con valor `true` por socio en todo momento.
 - `member_id`: Clave foránea (UUID) que referencia al socio titular del certificado.
 
+**Constraint de unicidad**: Se debe crear un índice único parcial sobre `(member_id)` filtrado por `is_validated = true`, garantizando a nivel de base de datos que nunca existan dos certificados activos para el mismo socio, incluso ante transacciones concurrentes.
+
 ### Contrato de API (`@alentapp/shared`)
 
 - **Endpoint**: `POST /api/v1/medical-certificates`
@@ -95,7 +97,7 @@ Se definirá la entidad `MedicalCertificate` con las siguientes propiedades y re
 
 ## Plan de Implementación
 
-1. Añadir el modelo `MedicalCertificate` en `schema.prisma`, correr la migración y definir los DTOs en `@alentapp/shared`.
+1. Añadir el modelo `MedicalCertificate` en `schema.prisma` con un índice único parcial (`@@unique`) sobre `member_id` filtrado por `is_validated = true`, correr la migración y definir los DTOs en `@alentapp/shared`.
 2. Declarar la interfaz `MedicalCertificateRepository` en el Dominio e implementar `PostgresMedicalCertificateRepository`, usando `prisma.$transaction` para la invalidación + creación atómica.
 3. Implementar `CreateMedicalCertificateUseCase`: validar existencia del socio, coherencia de fechas y delegar al repositorio.
 4. Registrar la ruta `POST /api/v1/medical-certificates` en el controlador y en `app.ts`.
