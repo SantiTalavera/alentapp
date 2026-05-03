@@ -39,8 +39,8 @@ Se trata de una actualización parcial a nivel de negocio. Todos los campos del 
 
 ```ts
 {
-    issue_date?: string;        // ISO Date String (YYYY-MM-DD)
-    expiry_date?: string;       // ISO Date String (YYYY-MM-DD)
+    issue_date?: string;        // ISO Date (YYYY-MM-DD)
+    expiry_date?: string;       // ISO Date (YYYY-MM-DD)
     doctor_license?: string;    // Número de matrícula del médico emisor
 }
 ```
@@ -54,7 +54,7 @@ Se trata de una actualización parcial a nivel de negocio. Todos los campos del 
     issue_date: string;
     expiry_date: string;
     doctor_license: string;
-    is_updated: boolean;
+    is_validated: boolean;
 }
 ```
 

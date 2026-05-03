@@ -22,8 +22,8 @@ Permitir a los administrativos registrar el certificado médico de aptitud físi
 
 - El sistema debe validar que el socio (`member_id`) exista antes de registrar el certificado.
 - El sistema debe validar que `expiry_date` sea estrictamente posterior a `issue_date`.
-- Al crear un nuevo certificado, el sistema debe invalidar (`is_updated: false`) todos los certificados previos del socio en la misma transacción de base de datos.
-- El nuevo certificado debe quedar guardado con `is_updated: true` por defecto.
+- Al crear un nuevo certificado, el sistema debe invalidar (`is_validated: false`) todos los certificados previos del socio en la misma transacción de base de datos.
+- El nuevo certificado debe quedar guardado con `is_validated: true` por defecto.
 - Si el alta es exitosa, el sistema debe retornar el certificado creado con sus datos completos.
 
 ---
@@ -35,10 +35,10 @@ Permitir a los administrativos registrar el certificado médico de aptitud físi
 Se definirá la entidad `MedicalCertificate` con las siguientes propiedades y restricciones:
 
 - `id`: Identificador único universal (UUID).
-- `issue_date`: Fecha de emisión del certificado (DateTime).
-- `expiry_date`: Fecha de vencimiento del certificado (DateTime). Debe ser estrictamente posterior a `issue_date`.
+- `issue_date`: Fecha de emisión del certificado (Date).
+- `expiry_date`: Fecha de vencimiento del certificado (Date). Debe ser estrictamente posterior a `issue_date`.
 - `doctor_license`: Cadena de texto con la matrícula del médico emisor.
-- `is_updated`: Booleano que indica si el certificado es el activo del socio. Solo puede existir un registro con valor `true` por socio en todo momento.
+- `is_validated`: Booleano que indica si el certificado es el activo del socio. Solo puede existir un registro con valor `true` por socio en todo momento.
 - `member_id`: Clave foránea (UUID) que referencia al socio titular del certificado.
 
 ### Contrato de API (`@alentapp/shared`)
@@ -64,7 +64,7 @@ Se definirá la entidad `MedicalCertificate` con las siguientes propiedades y re
     issue_date: string;
     expiry_date: string;
     doctor_license: string;
-    is_updated: boolean;        // Siempre true al momento de creación
+    is_validated: boolean;       // Siempre true al momento de creación
 }
 ```
 
@@ -88,8 +88,8 @@ Se definirá la entidad `MedicalCertificate` con las siguientes propiedades y re
 | `expiry_date` <= `issue_date`      | Mensaje: "La fecha de vencimiento debe ser posterior a la de emisión" | 400 Bad Request      |
 | `doctor_license` vacío o ausente   | Mensaje: "La matrícula del médico es requerida"                 | 400 Bad Request           |
 | Fallo en la transacción de DB      | Mensaje: "Error interno, reintente más tarde" (rollback total)  | 500 Internal Server Error |
-| Alta exitosa (sin cert. previo)    | Retorna el certificado con `is_updated: true`                   | 201 Created               |
-| Alta exitosa (con cert. previo)    | Invalida el anterior y retorna el nuevo con `is_updated: true`  | 201 Created               |
+| Alta exitosa (sin cert. previo)    | Retorna el certificado con `is_validated: true`                  | 201 Created               |
+| Alta exitosa (con cert. previo)    | Invalida el anterior y retorna el nuevo con `is_validated: true` | 201 Created               |
 
 ---
 

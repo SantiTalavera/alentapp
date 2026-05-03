@@ -23,7 +23,7 @@ Permitir a los administrativos eliminar permanentemente un certificado médico d
 - El sistema debe pedir una confirmación explícita (advertencia visual) antes de proceder con el borrado.
 - El sistema debe validar que el certificado exista antes de intentar eliminarlo.
 - El sistema debe realizar un borrado físico del registro en la base de datos (hard delete).
-- Si el certificado eliminado era el activo (`is_updated: true`), el sistema no recalcula ni reactiva ningún certificado anterior de forma automática; el socio queda sin certificado activo hasta que se registre uno nuevo.
+- Si el certificado eliminado era el activo (`is_validated: true`), el sistema no recalcula ni reactiva ningún certificado anterior de forma automática; el socio queda sin certificado activo hasta que se registre uno nuevo.
 - Si el borrado es exitoso, la vista del socio debe actualizarse automáticamente.
 
 ---
