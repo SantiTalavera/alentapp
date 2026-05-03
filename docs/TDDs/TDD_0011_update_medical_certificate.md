@@ -22,7 +22,7 @@ Permitir a los administrativos corregir datos de un certificado médico ya regis
 
 - El sistema debe validar que el certificado a actualizar exista.
 - El sistema debe permitir actualizar uno o varios campos: `issue_date`, `expiry_date`, `doctor_license`.
-- El campo `member_id` es inmutable: no puede modificarse mediante este endpoint.
+- El campo `member_id` es inmutable: si el cliente lo envía en el body, el sistema debe rechazar la petición con un error explícito (`400 Bad Request`).
 - Si se modifica alguna de las fechas, el sistema debe revalidar que `expiry_date` sea estrictamente posterior a `issue_date` (usando los valores resultantes, no solo los enviados).
 - Si la edición es correcta, debe retornar el registro completo con los datos actualizados.
 
@@ -64,7 +64,7 @@ Se trata de una actualización parcial a nivel de negocio. Todos los campos del 
    - `findById(id: string): Promise<MedicalCertificate | null>`
    - `update(id: string, data: Partial<MedicalCertificate>): Promise<MedicalCertificate>`
 2. **Servicio de Dominio**: `MedicalCertificateValidator` — Centraliza la validación de coherencia de fechas (`expiry_date > issue_date`), reutilizable desde el caso de uso de creación (TDD-0010) y este.
-3. **Caso de Uso**: `UpdateMedicalCertificateUseCase` — Recupera el registro existente, aplica los campos entrantes sobre los actuales, valida la coherencia de fechas resultante y delega la persistencia al repositorio.
+3. **Caso de Uso**: `UpdateMedicalCertificateUseCase` — Recupera el registro existente, rechaza la petición si se envía `member_id`, aplica los campos entrantes sobre los actuales, valida la coherencia de fechas resultante y delega la persistencia al repositorio.
 4. **Adaptador de Salida**: `PostgresMedicalCertificateRepository` — Actualización usando el método `update` de Prisma sobre el campo `id`.
 5. **Adaptador de Entrada**: `MedicalCertificateController` — Ruta HTTP que extrae el `id` de la URL, parsea el body parcial, delega al caso de uso y mapea las excepciones de dominio a códigos HTTP.
 
@@ -77,7 +77,7 @@ Se trata de una actualización parcial a nivel de negocio. Todos los campos del 
 | Certificado inexistente                  | Mensaje: "El certificado médico no existe"                                  | 404 Not Found             |
 | `expiry_date` <= `issue_date` resultante | Mensaje: "La fecha de vencimiento debe ser posterior a la de emisión"       | 400 Bad Request           |
 | Body vacío (ningún campo enviado)        | Mensaje: "Se debe enviar al menos un campo para actualizar"                 | 400 Bad Request           |
-| Intento de modificar `member_id`         | El campo es ignorado silenciosamente (no provoca error, no se aplica)       | 200 OK                    |
+| Intento de modificar `member_id`         | Mensaje: "El socio titular del certificado no puede modificarse"            | 400 Bad Request           |
 | Error de conexión a DB                   | Mensaje: "Error interno, reintente más tarde"                               | 500 Internal Server Error |
 | Actualización exitosa                    | Retorna el certificado completo con los nuevos valores                      | 200 OK                    |
 
@@ -92,6 +92,6 @@ Se trata de una actualización parcial a nivel de negocio. Todos los campos del 
 5. Implementar el método `update` en `PostgresMedicalCertificateRepository` usando Prisma.
 6. Implementar el endpoint `PATCH /api/v1/medical-certificates/:id` en el controlador y registrarlo en `app.ts`.
 7. Reutilizar/adaptar el formulario modal en el Frontend para el modo edición.
-8. Escribir tests unitarios para el caso de uso: certificado inexistente, fechas inválidas, body vacío, ignorar `member_id` y actualización exitosa.
+8. Escribir tests unitarios para el caso de uso: certificado inexistente, fechas inválidas, body vacío, rechazo de `member_id` (400) y actualización exitosa.
 9. Escribir tests de integración para el endpoint.
 
