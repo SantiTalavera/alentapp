@@ -17,6 +17,22 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 > _Primera entrega: Actividad 1 TP Integrador — TDDs de las 6 entidades_
 
 ### Added
+- `docs/TDDs/TDD_0004` TDD de la Entidad Locker: Registro de nuevo locker
+- `docs/TDDs/TDD_0005` TDD de la Entidad Locker: Baja de locker
+- `docs/TDDs/TDD_0006` TDD de la Entidad Locker: Modificación de locker
+- `docs/TDDs/TDD_0007` TDD de la Entidad Sport: Registro de nuevo deporte
+- `docs/TDDs/TDD_0008` TDD de la Entidad Sport: Modificación de nuevo deporte
+- `docs/TDDs/TDD_0009` TDD de la Entidad Sport: Baja de nuevo deporte
+- `docs/TDDs/TDD_0010` TDD de la Entidad MedicalCertificate: Registro de nuevo certificado
+- `docs/TDDs/TDD_0011` TDD de la Entidad MedicalCertificate: Actualización de certificado
+- `docs/TDDs/TDD_0012` TDD de la Entidad MedicalCertificate: Baja de certificado
+- `docs/TDDs/TDD_0013` TDD de la Entidad Payment: Registro de nuevo payment
+- `docs/TDDs/TDD_0014` TDD de la Entidad Payment: Baja de payment
+- `docs/TDDs/TDD_0015` TDD de la Entidad Payment: Modificación de payment
+- `docs/TDDs/TDD_0016` TDD de la Entidad EquipmentLoan: Registro de nuevo préstamo
+- `docs/TDDs/TDD_0017` TDD de la Entidad EquipmentLoan: Listado de préstamos
+- `docs/TDDs/TDD_0018` TDD de la Entidad EquipmentLoan: Modificación de préstamo
+- `docs/TDDs/TDD_0019` TDD de la Entidad EquipmentLoan: Baja de préstamo
 
 
 ---
