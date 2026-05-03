@@ -23,9 +23,13 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - `docs/TDDs/TDD_0007` TDD de la Entidad Sport: Registro de nuevo deporte
 - `docs/TDDs/TDD_0008` TDD de la Entidad Sport: Modificación de nuevo deporte
 - `docs/TDDs/TDD_0009` TDD de la Entidad Sport: Baja de nuevo deporte
+- `docs/TDDs/TDD_0010` TDD de la Entidad MedicalCertificate: Registro de nuevo certificado
+- `docs/TDDs/TDD_0011` TDD de la Entidad MedicalCertificate: Actualización de certificado
+- `docs/TDDs/TDD_0012` TDD de la Entidad MedicalCertificate: Baja de certificado
 - `docs/TDDs/TDD_0013` TDD de la Entidad Payment: Registro de nuevo payment
 - `docs/TDDs/TDD_0014` TDD de la Entidad Payment: Baja de payment
 - `docs/TDDs/TDD_0015` TDD de la Entidad Payment: Modificación de payment
+
 
 ---
 
