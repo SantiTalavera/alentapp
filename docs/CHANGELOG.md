@@ -29,6 +29,10 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - `docs/TDDs/TDD_0013` TDD de la Entidad Payment: Registro de nuevo payment
 - `docs/TDDs/TDD_0014` TDD de la Entidad Payment: Baja de payment
 - `docs/TDDs/TDD_0015` TDD de la Entidad Payment: Modificación de payment
+- `docs/TDDs/TDD_0016` TDD de la Entidad EquipmentLoan: Registro de nuevo préstamo
+- `docs/TDDs/TDD_0017` TDD de la Entidad EquipmentLoan: Listado de préstamos
+- `docs/TDDs/TDD_0018` TDD de la Entidad EquipmentLoan: Modificación de préstamo
+- `docs/TDDs/TDD_0019` TDD de la Entidad EquipmentLoan: Baja de préstamo
 
 
 ---
