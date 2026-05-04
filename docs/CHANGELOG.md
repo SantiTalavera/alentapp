@@ -7,16 +7,18 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 ## [Sin publicar]
 
 ### Added
+
 <!-- Listar acá los cambios que están en main pero aún no tienen versión asignada -->
-- `.github/pull_request_template.md` con template estándar para PRs
 
 ---
 
-## [0.1.0] — AAAA-MM-DD
+## [0.1.0] — 2026-05-03
 
 > _Primera entrega: Actividad 1 TP Integrador — TDDs de las 6 entidades_
 
 ### Added
+
+- `.github/pull_request_template.md` con template estándar para PRs
 - `docs/TDDs/TDD_0004` TDD de la Entidad Locker: Registro de nuevo locker
 - `docs/TDDs/TDD_0005` TDD de la Entidad Locker: Baja de locker
 - `docs/TDDs/TDD_0006` TDD de la Entidad Locker: Modificación de locker
@@ -33,7 +35,11 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - `docs/TDDs/TDD_0017` TDD de la Entidad EquipmentLoan: Listado de préstamos
 - `docs/TDDs/TDD_0018` TDD de la Entidad EquipmentLoan: Modificación de préstamo
 - `docs/TDDs/TDD_0019` TDD de la Entidad EquipmentLoan: Baja de préstamo
+- `docs/TDDs/TDD_0020` TDD de la Entidad Discipline: Registro de nueva disciplina
+- `docs/TDDs/TDD_0021` TDD de la Entidad Discipline: Modificación de disciplina
+- `docs/TDDs/TDD_0022` TDD de la Entidad Discipline: Baja de disciplina
 
+### Changed
 
 ---
 
