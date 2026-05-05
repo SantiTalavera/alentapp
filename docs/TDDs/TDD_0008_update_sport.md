@@ -1,9 +1,9 @@
 ---
 id: 0008
+estado: Propuesto
 autor: Nicolás Pérez
 fecha: 2026-05-02
 titulo: Modificación de Deporte Existente
-estado: Propuesto
 ---
 
 # TDD-0008: Modificación de Deporte Existente
@@ -57,6 +57,7 @@ La restricción principal de esta operación es que **no puede actualizarse `nam
 ### Contrato de API (@alentapp/shared)
 
 Se utilizará el paquete compartido para definir el cuerpo de la petición. Todos los campos permitidos son opcionales porque se trata de una actualización parcial.
+Se reutiliza `SportDTO`, definido en el TDD de alta de deporte, como contrato de respuesta común para la entidad.
 
 - Endpoint: `PATCH /api/v1/sports/:id`
 - Request Body (UpdateSportRequest):
@@ -81,7 +82,7 @@ export interface UpdateSportRequest {
 ### Componentes de Arquitectura Hexagonal
 
 1. **Puerto**: `SportRepository` (Interfaz en el Dominio con métodos `findById(id)` y `update(id, data)`). Permite que el caso de uso trabaje contra una abstracción y no dependa directamente de Prisma.
-2. **Servicio de Dominio / Entidad**: `Sport` o `SportValidator` (Encargado de aplicar las reglas de negocio propias de la entidad). En esta operación debe garantizar que `name` no pueda modificarse después de la creación, que `max_capacity` sea mayor a cero y que `additional_price` no sea negativo.
+2. **Servicio de Dominio / Entidad**: `Sport` o `SportValidator` (Encargado de aplicar las reglas de negocio propias de la entidad). En esta operación debe garantizar que `name` no pueda modificarse después de la creación, que `max_capacity` sea mayor a cero , que `additional_price` no sea negativo y que no se modifiquen deportes eliminados lógicamente.
 3. **Caso de Uso**: `UpdateSportUseCase` (Orquesta la operación). Recibe el `id` y el body del request, verifica que el deporte exista y que esté activo (`deleted_at` en `null`), valida los campos enviados, rechaza cualquier intento de modificar `name` y llama al repositorio para persistir los cambios.
 4. **Adaptador de Salida**: `PostgresSportRepository` (Implementación real en BD usando Prisma). Ejecuta la actualización sobre la tabla `Sport` y expone los métodos definidos por el puerto.
 5. **Adaptador de Entrada**: `SportController` (Ruta HTTP `PATCH /api/v1/sports/:id`). Extrae el `id` de la URL, valida el body tipado como `UpdateSportRequest`, invoca el caso de uso y mapea excepciones a códigos HTTP.
@@ -105,7 +106,7 @@ export interface UpdateSportRequest {
 ## Plan de Implementación
 1. Crear el tipo `UpdateSportRequest` en `@alentapp/shared`, incluyendo únicamente los campos editables: `description`, `max_capacity`, `additional_price` y `requires_medical_certificate`.
 2. Agregar el método `update(id, data)` al puerto `SportRepository` y asegurar que exista un método `findById(id)` para validar la existencia del deporte y su estado de baja lógica.
-3. Implementar las validaciones de dominio para impedir la modificación de `name`, validar que `max_capacity` sea mayor a cero y que `additional_price` sea mayor o igual a cero.
+3. Implementar las validaciones de dominio para impedir la modificación de `name`, validar que `max_capacity` sea mayor a cero, que `additional_price` sea mayor o igual a cero y que no se modifiquen deportes eliminados lógicamente.
 4. Implementar `UpdateSportUseCase`, verificando existencia del deporte, que esté activo (`deleted_at` en `null`), body no vacío, campos permitidos y reglas de negocio antes de persistir.
 5. Implementar el método `update` en `PostgresSportRepository` usando Prisma.
 6. Implementar el endpoint `PATCH /api/v1/sports/:id` en `SportController` y registrarlo en Fastify.

@@ -1,5 +1,6 @@
 ---
 id: 0009
+estado: Propuesto
 autor: Nicolás Pérez
 fecha: 2026-05-02
 titulo: Baja de Deporte Existente
@@ -11,91 +12,93 @@ titulo: Baja de Deporte Existente
 
 ### Objetivo
 
-Permitir que un administrativo dé de baja un deporte del sistema cuando este deja de ofrecerse en el club, manteniendo actualizado el catálogo de actividades disponibles y evitando que los socios puedan inscribirse a deportes que ya no forman parte de la oferta.
-
-Como `Sport` se encuentra relacionado con `Enrollment`, la baja debe contemplar la integridad referencial. En esta implementación se adopta y se toma como decisión una eliminación física del deporte y de las inscripciones asociadas, para evitar que queden registros de inscripción apuntando a un deporte inexistente.
+Permitir que un administrativo dé de baja un deporte que el club ya no ofrece, sin borrar el registro en base de datos. La baja se realiza mediante **eliminación lógica**: se marca el campo `deleted_at` con la fecha y hora actuales (según el servidor). El deporte deja de aparecer en el **catálogo activo** y **no puede recibir nuevas inscripciones**. Las **inscripciones (`Enrollment`) asociadas no se eliminan**: se conservan como **historial** para auditoría y trazabilidad.
 
 ### User Persona
 
 - Nombre: Administrativo del Club.
-- Necesidad: Eliminar deportes que ya no se ofrecen, de forma segura y con confirmación previa. Necesita que el catálogo quede actualizado y que no queden inscripciones asociadas a un deporte eliminado.
+- Necesidad: Retirar el deporte del catálogo activo de forma segura y con confirmación previa, **sin perder el historial de inscripciones previas** asociadas a ese deporte.
 
 ### Criterios de Aceptación
 
 - El sistema debe pedir una confirmación explícita antes de proceder con la baja.
-- El sistema debe validar que el deporte exista antes de intentar eliminarlo.
-- Si el deporte tiene inscripciones asociadas, el sistema debe eliminar también dichas inscripciones.
-- El sistema debe realizar la eliminación dentro de una operación transaccional para preservar la integridad de los datos.
-- Si la eliminación es exitosa, el sistema debe retornar una respuesta vacía con estado `204 No Content`.
-- Al finalizar correctamente, el deporte eliminado no debe aparecer en el catálogo ni estar disponible para nuevas inscripciones.
+- El sistema debe validar que el deporte exista antes de intentar darlo de baja.
+- El sistema debe validar que el deporte no haya sido dado de baja previamente (`deleted_at` debe estar en `null`).
+- Al dar de baja el deporte, el sistema debe establecer `deleted_at` con la fecha y hora actuales del servidor.
+- El registro de `Sport` permanece en la base de datos.
+- No se eliminan los `Enrollment` asociados; se conservan como historial.
+- El deporte dado de baja no debe aparecer en los listados activos ni estar disponible para nuevas inscripciones.
+- Si la baja es exitosa, el sistema debe retornar el `SportDTO` actualizado dentro de `{ data }` con estado `200 OK`.
 
 ## Diseño Técnico (RFC)
 
 ### Modelo de Datos
 
-Se trabaja sobre las entidades `Sport` y `Enrollment`, de acuerdo con el DER provisto en la consigna.
+La baja de un deporte es **soft delete** sobre la entidad principal `Sport`. La relación con `Enrollment` se mantiene para conservar historial; **no** se trata de una entidad a eliminar en este flujo.
 
 Entidad principal: `Sport`.
 
-| Campo                          | Tipo    | Descripción                                       |
-| ------------------------------ | ------- | ------------------------------------------------- |
-| `id`                           | UUID    | Identificador del deporte a eliminar.             |
-| `name`                         | String  | Nombre del deporte.                               |
-| `description`                  | String  | Descripción del deporte.                          |
-| `max_capacity`                 | Int     | Cupo máximo del deporte.                          |
-| `additional_price`             | Float   | Precio adicional del deporte.                     |
-| `requires_medical_certificate` | Boolean | Indica si el deporte requiere certificado médico. |
+| Campo                          | Tipo                 | Nullable | Descripción |
+| ------------------------------ | -------------------- | -------- | ----------- |
+| `id`                           | UUID                 | No       | Identificador del deporte. |
+| `name`                         | String               | No       | Nombre del deporte. |
+| `description`                  | String               | No       | Descripción del deporte. |
+| `max_capacity`                 | Int                  | No       | Cupo máximo del deporte. |
+| `additional_price`             | Float                | No       | Precio adicional del deporte. |
+| `requires_medical_certificate` | Boolean              | No       | Indica si el deporte requiere certificado médico. |
+| `deleted_at`                   | DateTime             | Si       | Marca de baja lógica. `null` indica deporte activo; con valor indica deporte eliminado lógicamente. |
 
-Entidad relacionada: `Enrollment`.
+Los registros de **`Enrollment`** vinculados al deporte (por `sport_id`) **no se borran** en la operación de baja del deporte; permanecen como historial.
 
-| Campo             | Tipo     | Descripción                                   |
-| ----------------- | -------- | --------------------------------------------- |
-| `id`              | UUID     | Identificador de la inscripción.              |
-| `member_id`       | UUID     | Socio inscripto.                              |
-| `sport_id`        | UUID     | Deporte asociado a la inscripción.            |
-| `enrollment_date` | DateTime | Fecha de inscripción.                         |
-| `is_active`       | Boolean  | Indica si la inscripción se encuentra activa. |
-
-La entidad `Enrollment` referencia a `Sport` mediante `sport_id`. Por este motivo, antes de eliminar un deporte se deben eliminar sus inscripciones asociadas o realizar ambas operaciones dentro de una misma transacción.
-
-> **Nota de diseño**: se adopta eliminación física con borrado de inscripciones asociadas. Esta decisión evita referencias huérfanas y mantiene el modelo alineado con el DER actual, sin agregar un campo de baja lógica en `Sport`.
+> **Nota de diseño**: La baja lógica de `Sport` no elimina sus `Enrollment` asociados. Estos registros se conservan como historial. Los casos de uso de `Enrollment` deberán impedir crear nuevas inscripciones asociadas a deportes con `deleted_at` distinto de `null`.
 
 ### Contrato de API (@alentapp/shared)
 
-Al tratarse de una operación destructiva que solo requiere conocer el identificador del deporte, no se envía cuerpo en la petición HTTP.
+No se requieren tipos nuevos en el paquete compartido. Se reutiliza `SportDTO`, definido en el TDD de alta de deporte, que incluye el campo `deleted_at`.
 
 - Endpoint: `DELETE /api/v1/sports/:id`
 - Request Body: `None`
-- Response: `204 No Content` en caso de éxito.
+
+**Response exitosa (`200 OK`):**
+
+```ts
+{
+  data: SportDTO
+}
+```
+
+> Se devuelve `200 OK` con el DTO actualizado, en lugar de `204 No Content`, porque la baja lógica actualiza el recurso estableciendo `deleted_at`.
 
 ### Componentes de Arquitectura Hexagonal
 
-1. **Puerto**: `SportRepository` (Interfaz en el Dominio con métodos `findById(id)` y `delete(id)`). Permite verificar la existencia del deporte y delegar la eliminación sin depender directamente de Prisma.
-2. **Puerto relacionado**: `EnrollmentRepository` (Interfaz en el Dominio con método `deleteBySportId(sportId)`). Permite eliminar las inscripciones asociadas al deporte antes de eliminar el registro principal.
-3. **Caso de Uso**: `DeleteSportUseCase` (Orquesta la operación). Recibe el `id`, verifica que el deporte exista, elimina las inscripciones asociadas y luego elimina el deporte dentro de una transacción.
-4. **Adaptador de Salida**: `PostgresSportRepository` y `PostgresEnrollmentRepository` (Implementaciones reales en BD usando Prisma). Ejecutan las operaciones de eliminación sobre las tablas correspondientes.
-5. **Adaptador de Entrada**: `SportController` (Ruta HTTP `DELETE /api/v1/deportes/:id`). Extrae el `id` de la URL, invoca el caso de uso y devuelve `204 No Content` si la operación finaliza correctamente.
+1. **Puerto**: `SportRepository` con métodos `findById(id)` y `softDelete(id)`. Permite verificar existencia y marcar el deporte como eliminado lógicamente sin depender de Prisma.
+2. **Servicio de Dominio / Entidad**: `Sport` o `SportValidator`, encargado de validar que el deporte exista y que no tenga `deleted_at` informado antes de permitir la baja.
+3. **Caso de Uso**: `DeleteSportUseCase`, que recibe el `id`, verifica existencia, valida que no esté eliminado previamente y delega el soft delete al repositorio.
+4. **Adaptador de Salida**: `PostgresSportRepository`, que implementa `softDelete` usando Prisma mediante una actualización de `deleted_at = now()` y retorna el `SportDTO` actualizado.
+5. **Adaptador de Entrada**: `SportController`, ruta `DELETE /api/v1/sports/:id`, extrae el `id`, invoca el caso de uso y responde `200 OK` con `{ data: SportDTO }`.
+
+**Importante**: No incluir `EnrollmentRepository` como dependencia del caso de uso de baja de `Sport`. `Enrollment` se verá afectado solo a nivel de **reglas futuras**: no permitir nuevas inscripciones a deportes eliminados lógicamente.
 
 ## Casos de Borde y Errores
 
-| Escenario                                 | Resultado Esperado                                 | Código HTTP               |
-| ----------------------------------------- | -------------------------------------------------  | ------------------------- |
-| ID no corresponde a ningún deporte        | Mensaje: "Deporte no encontrado"                   | 404 Not Found             |
-| ID con formato inválido                   | Mensaje: "Identificador de deporte inválido"       | 400 Bad Request           |
-| Deporte sin inscripciones asociadas       | Se elimina únicamente el deporte                   | 204 No Content            |
-| Deporte con inscripciones asociadas       | Se eliminan las inscripciones y luego el deporte   | 204 No Content            |
-| Error al eliminar inscripciones asociadas | Se cancela la operación y no se elimina el deporte | 500 Internal Server Error |
-| Error de conexión a DB                    | Mensaje: "Error interno, reintente más tarde"      | 500 Internal Server Error |
+| Escenario                          | Resultado esperado                                                             | Código HTTP               |
+| ---------------------------------- | ------------------------------------------------------------------------------ | ------------------------- |
+| ID no corresponde a ningún deporte | "Deporte no encontrado"                                                        | 404 Not Found             |
+| ID con formato inválido            | "Identificador de deporte inválido"                                            | 400 Bad Request           |
+| Deporte ya eliminado lógicamente   | "El deporte ya fue dado de baja"                                               | 409 Conflict              |
+| Baja lógica exitosa                | `SportDTO` con `deleted_at` poblado; el deporte desaparece de listados activos | 200 OK                    |
+| Error de conexión a DB             | "Error interno, reintente más tarde"                                           | 500 Internal Server Error |
 
 ## Plan de Implementación
 
-1. Agregar al puerto `SportRepository` los métodos `findById(id)` y `delete(id)`.
-2. Agregar al puerto `EnrollmentRepository` el método `deleteBySportId(sportId)`.
-3. Implementar `DeleteSportUseCase`, validando existencia del deporte antes de eliminar.
-4. Ejecutar la eliminación de inscripciones asociadas y del deporte dentro de una transacción.
-5. Implementar los métodos correspondientes en `PostgresSportRepository` y `PostgresEnrollmentRepository` usando Prisma.
-6. Implementar el endpoint `DELETE /api/v1/deportes/:id` en `SportController` y registrarlo en Fastify.
-7. Añadir el método `delete` al servicio de frontend.
-8. Enlazar el botón de eliminación en la vista de deportes, agregando una confirmación visual antes de ejecutar la operación.
-9. Escribir tests unitarios para el caso de uso: deporte inexistente, deporte sin inscripciones, deporte con inscripciones y error transaccional.
-10. Escribir tests de integración para el endpoint.
+1. Confirmar que el modelo `Sport` incluya el campo `deleted_at` nullable, definido desde el TDD de alta.
+2. Confirmar que `SportDTO` incluya `deleted_at: string | null`.
+3. Agregar al puerto `SportRepository` el método `softDelete(id): Promise<SportDTO>` y asegurar que exista `findById(id)`.
+4. Implementar `DeleteSportUseCase`, validando existencia del deporte y que `deleted_at` esté en `null`.
+5. Implementar `softDelete` en `PostgresSportRepository` usando Prisma, actualizando `deleted_at` con la fecha actual del servidor.
+6. Implementar el endpoint `DELETE /api/v1/sports/:id` en `SportController` y registrarlo en Fastify.
+7. Añadir el método `delete` o `softDelete` al servicio frontend.
+8. Enlazar el botón de baja en la vista de deportes, agregando confirmación visual antes de ejecutar la operación.
+9. Asegurar que los listados y búsquedas operativas de deportes excluyan registros con `deleted_at` distinto de `null`.
+10. Escribir tests unitarios para el caso de uso: deporte inexistente, deporte ya eliminado y baja lógica exitosa.
+11. Escribir tests de integración para el endpoint `DELETE /api/v1/sports/:id`.
