@@ -17,7 +17,7 @@ Permitir que un administrativo dé de alta un deporte de forma digital, mantenie
 ### User Persona
 
 - Nombre: Administrativo del Club.
-- Necesidad: Cargar nuevos deportes rápidamente, indicando su descripción, cupo máximo y datos administrativos asociados. No puede permitirse registrar deportes duplicados o con una capacidad inválida.
+- Necesidad: Cargar nuevos deportes rápidamente, indicando su descripción, cupo máximo, precio adicional y si requiere certificado médico. No puede permitirse registrar deportes duplicados o con una capacidad inválida.
 
 ### Criterios de Aceptación
 
@@ -61,13 +61,13 @@ Se añaden los siguientes tipos al paquete compartido `packages/shared/index.ts`
 
 ```ts
 export interface SportDTO {
-  id: string;
-  name: string;
-  description: string;
-  max_capacity: number;
-  additional_price: number;
-  requires_medical_certificate: boolean;
-  deleted_at: string | null;
+  id: string;                               //UUID
+  name: string;                             //Nombre único del deporte
+  description: string;                      //Descripción del deporte
+  max_capacity: number;                     //Cupo máximo, debe ser > 0
+  additional_price: number;                 //Precio adicional debe ser >= 0
+  requires_medical_certificate: boolean;    //Indica si requiere certificado médico
+  deleted_at: string | null;                //ISO DateTime String. null = activo; con valor = eliminado lógicamente
 }
 
 export interface CreateSportRequest {
@@ -89,7 +89,7 @@ export interface CreateSportRequest {
 
 ### Componentes de Arquitectura Hexagonal
 
-- **Domain**: el puerto `SportRepository` define el contrato de persistencia. El servicio `SportValidator` (o una entidad `Sport`) concentra las reglas de negocio: `name` obligatorio y único (coordinado con el repositorio para la unicidad), `max_capacity` entero mayor a cero, `additional_price` mayor o igual a cero. Al crear un deporte, `deleted_at` se inicializa en `null`.
+- **Domain**: el puerto `SportRepository` define el contrato de persistencia. El servicio `SportValidator` (o una entidad `Sport`) concentra las reglas de negocio: `name` obligatorio y único (coordinado con el repositorio para la unicidad), `max_capacity` entero mayor a cero, `additional_price` mayor o igual a cero. Al crear un deporte, `deleted_at` se inicializa en `null`. El puerto se define completo desde el inicio para que los casos de uso de alta, modificación, baja y consulta compartan la misma interfaz.
 
 - **Application**: `NewSportUseCase` orquesta el flujo sin conocer HTTP ni la base de datos: aplica validaciones, verifica duplicados por `name` y delega la persistencia al repositorio.
 
@@ -104,10 +104,12 @@ export interface CreateSportRequest {
 | Escenario                                  | Resultado Esperado                                                         | Código HTTP               |
 | ------------------------------------------ | -------------------------------------------------------------------------- | ------------------------- |
 | Nombre ya registrado                       | Mensaje: "Ya existe un deporte con ese nombre"                             | 409 Conflict              |
-| Nombre ausente o vacío                     | Mensaje: "El nombre del deporte es obligatorio"                            | 400 Bad Request           |
+| `name` ausente o vacío                     | Mensaje: "El nombre del deporte es obligatorio"                            | 400 Bad Request           |
+| `description` ausente o vacía              | Mensaje: "La descripción del deporte es obligatoria"                       | 400 Bad Request           |
 | `max_capacity` igual a 0 o negativo        | Mensaje: "La capacidad máxima debe ser mayor a cero"                       | 400 Bad Request           |
 | `max_capacity` no entero                   | Mensaje: "La capacidad máxima debe ser un número entero"                   | 400 Bad Request           |
 | `additional_price` menor que cero          | Mensaje: "El precio adicional debe ser mayor o igual a cero"               | 400 Bad Request           |
+| `additional_price` ausente                 | Mensaje: "El precio adicional es obligatorio"                              | 400 Bad Request           |
 | `requires_medical_certificate` no booleano | Mensaje: "El campo requiere certificado médico debe ser verdadero o falso" | 400 Bad Request           |
 | Alta exitosa                               | Respuesta con `SportDTO` donde `deleted_at` es `null`                      | 201 Created               |
 | Error de conexión a DB                     | Mensaje: "Error interno, reintente más tarde"                              | 500 Internal Server Error |
@@ -117,7 +119,7 @@ export interface CreateSportRequest {
 1. Agregar `SportDTO` y `CreateSportRequest` al paquete `@alentapp/shared` (`packages/shared/index.ts`).
 2. Modificar el esquema de persistencia (`schema.prisma`): agregar el modelo `Sport`, incluyendo `deleted_at` como campo nullable para soportar baja lógica.
 3. Ejecutar la migración de base de datos con el nombre `create_sports_table`.
-4. Crear el puerto `SportRepository.ts` en `src/domain/` con métodos `create`, `findById`, `findByName`, `findAll`, `update` y `softDelete`.
+4. Crear el puerto `SportRepository.ts` en `src/domain/` con los métodos necesarios para el ciclo de vida de `Sport`: `create`, `findById`, `findByName`, `findAll`, `update` y `softDelete`.
 5. Crear el servicio de dominio `SportValidator.ts` en `src/domain/services/`, encapsulando las reglas: `name` obligatorio y único, `max_capacity` > 0, `additional_price` >= 0.
 6. Implementar `NewSportUseCase.ts` en `src/application/`.
 7. Implementar `PostgresSportRepository.ts` en `src/infrastructure/`, con método `create` y mapeo a `SportDTO`.
