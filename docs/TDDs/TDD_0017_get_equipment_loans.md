@@ -49,7 +49,7 @@ Se reutilizan los tipos `EquipmentLoanDTO` y `LoanStatus` definidos en TDD-0016.
 
 **Endpoint 1 — Listado general (con filtro opcional):**
 
-- **Método y Ruta**: `GET /api/v1/prestamos`
+- **Método y Ruta**: `GET /api/v1/loans`
 - **Query Parameters**:
   - `memberId` *(string, UUID, opcional)*: Filtra los préstamos del socio especificado.
 - **Response exitosa** (`200 OK`):
@@ -62,7 +62,7 @@ Se reutilizan los tipos `EquipmentLoanDTO` y `LoanStatus` definidos en TDD-0016.
 
 **Endpoint 2 — Consulta individual por ID:**
 
-- **Método y Ruta**: `GET /api/v1/prestamos/:id`
+- **Método y Ruta**: `GET /api/v1/loans/:id`
 - **Path Parameters**:
   - `id` *(string, UUID, requerido)*: Identificador único del préstamo.
 - **Response exitosa** (`200 OK`):
@@ -83,7 +83,7 @@ Se amplían los componentes creados en TDD-0016 sin crear nuevos archivos de dom
 
 - **Infrastructure**: En `PostgresEquipmentLoanRepository`, `findAll` aplica siempre `WHERE deleted_at IS NULL`, el filtro `AND member_id = :memberId` condicional y `ORDER BY loan_date DESC`. `findById` aplica `WHERE id = :id AND deleted_at IS NULL` y retorna `null` si no hay resultado activo.
 
-- **Delivery**: `EquipmentLoanController` expone `GET /api/v1/prestamos` (extrae query param `memberId`) y `GET /api/v1/prestamos/:id` (extrae path param `id`, mapea `null` a `404`). Ambas rutas se registran en `app.ts`.
+- **Delivery**: `EquipmentLoanController` expone `GET /api/v1/loans` (extrae query param `memberId`) y `GET /api/v1/loans/:id` (extrae path param `id`, mapea `null` a `404`). Ambas rutas se registran en `app.ts`.
 
 ---
 
@@ -107,8 +107,8 @@ Se amplían los componentes creados en TDD-0016 sin crear nuevos archivos de dom
 4. Implementar `GetEquipmentLoansUseCase` en `src/application/`.
 5. Implementar `GetEquipmentLoanByIdUseCase` en `src/application/`.
 6. Agregar los métodos `getAll` y `getById` al `EquipmentLoanController` con el manejo de errores correspondiente.
-7. Registrar las rutas `GET /api/v1/prestamos` y `GET /api/v1/prestamos/:id` en `src/app.ts`.
+7. Registrar las rutas `GET /api/v1/loans` y `GET /api/v1/loans/:id` en `src/app.ts`.
 8. Agregar los métodos `getAll` y `getById` al servicio frontend `loans.ts`.
 9. Implementar en la vista `EquipmentLoans.tsx` la tabla de listado con el campo de filtro por socio y la llamada al servicio.
 10. Escribir tests unitarios: listado vacío, listado con resultados, filtro por memberId, préstamo por id existente, préstamo por id inexistente o eliminado.
-11. Escribir tests de integración para `GET /api/v1/prestamos` y `GET /api/v1/prestamos/:id`.
+11. Escribir tests de integración para `GET /api/v1/loans` y `GET /api/v1/loans/:id`.
