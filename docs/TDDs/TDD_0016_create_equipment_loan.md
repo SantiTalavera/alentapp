@@ -17,12 +17,14 @@ Permitir que un administrativo registre digitalmente el préstamo de un ítem de
 ### User Persona
 
 - **Nombre**: Administración del Club
-- **Necesidad**: Cuando un socio retira un elemento del club, necesita registrarlo rápidamente indicando a quién se le prestó, qué ítem es y cuándo debe devolverlo. No puede prestar equipamiento a alguien que tiene deudas pendientes o cuyo estado de cuenta lo inhabilita.
+- **Necesidad**: Cuando un socio retira un elemento del club, necesita registrarlo rápidamente indicando a quién se le prestó, qué ítem es y cuándo debe devolverlo. No puede registrar préstamos para socios con categoría `Cadet`; solo los socios `Senior` y `Lifetime` tienen permitido solicitar material.
+Tampoco puede prestar equipamiento a alguien que tiene deudas pendientes o cuyo estado de cuenta lo inhabilita.
 
 ### Criterios de Aceptación
 
 - El sistema debe validar que el socio (`member_id`) exista en la base de datos.
-- El sistema debe validar que el socio tenga un `status` de `Activo`; no se puede prestar a socios `Morosos` o `Suspendidos`.
+- **Restricción por categoría**: El sistema debe validar que el socio tenga una `category` igual a `Senior` o `Lifetime`. Los socios con categoría `Cadet` tienen **prohibido** solicitar préstamos de equipamiento.
+- El sistema debe validar que el socio tenga un `status` de `Active`; no se puede prestar a socios `Delinquent` o `Inactive`.
 - El `loan_date` debe ser autogenerado con la fecha y hora actuales del servidor (`now()`); el cliente no puede enviarlo.
 - El `status` del préstamo debe inicializarse como `Loaned` por defecto; el cliente no puede enviarlo.
 - El `item_name` es un campo de texto libre obligatorio; no puede estar vacío ni ausente.
@@ -63,7 +65,7 @@ Se define la entidad `EquipmentLoan` en el esquema de persistencia. Establece un
 
 Se añaden los siguientes tipos al paquete compartido `packages/shared/index.ts`. Estos tipos son la fuente de verdad compartida entre el frontend y el backend.
 
-- **Endpoint**: `POST /api/v1/prestamos`
+- **Endpoint**: `POST /api/v1/loans`
 - **Autenticación**: N/A (en el alcance actual del proyecto)
 - **Request Body** (`CreateEquipmentLoanRequest`):
 
@@ -100,28 +102,28 @@ export interface CreateEquipmentLoanRequest {
 
 ### Componentes de Arquitectura Hexagonal
 
-- **Domain**: El puerto `EquipmentLoanRepository` define el contrato de persistencia (métodos `create`, `findById`, `findAll`, `update`, `softDelete`). El servicio `EquipmentLoanValidator` encapsula las reglas de negocio: verifica que el socio exista y tenga estado `Activo`, y que la `due_date` —si se provee— sea futura. El puerto se define completo desde el inicio para que todos los casos de uso (TDD-0016 al TDD-0019) compartan la misma interfaz.
+- **Domain**: El puerto `EquipmentLoanRepository` define el contrato de persistencia (métodos `create`, `findById`, `findAll`, `update`, `softDelete`). El servicio `EquipmentLoanValidator` encapsula las reglas de negocio: verifica que el socio exista, tenga estado `Active` y tenga categoría `Senior` o `Lifetime` (los socios `Cadet` son rechazados con error descriptivo), y que la `due_date` —si se provee— sea futura. El puerto se define completo desde el inicio para que todos los casos de uso (TDD-0016 al TDD-0019) compartan la misma interfaz.
 
-- **Application**: `CreateEquipmentLoanUseCase` orquesta el flujo sin conocer HTTP ni la base de datos: valida al socio, valida la fecha de devolución si aplica, y delega la escritura al repositorio.
+- **Application**: `CreateEquipmentLoanUseCase` orquesta el flujo sin conocer HTTP ni la base de datos: valida al socio (existencia, estado activo y categoría permitida), valida la fecha de devolución si aplica, y delega la escritura al repositorio.
 
 - **Infrastructure**: `PostgresEquipmentLoanRepository` implementa el puerto con Prisma. El método `create` deja que la base de datos genere `id`, `status` (default `Loaned`) y `loan_date` (default `now()`), y usa un método privado `mapToDTO` para convertir el resultado al tipo compartido.
 
-- **Delivery**: `EquipmentLoanController` expone `POST /api/v1/prestamos`, extrae y tipifica el body como `CreateEquipmentLoanRequest`, delega al caso de uso y mapea las excepciones de dominio a los códigos HTTP correspondientes (ver tabla de errores). La ruta se registra en `app.ts`.
+- **Delivery**: `EquipmentLoanController` expone `POST /api/v1/loans`, extrae y tipifica el body como `CreateEquipmentLoanRequest`, delega al caso de uso y mapea las excepciones de dominio a los códigos HTTP correspondientes (ver tabla de errores). La ruta se registra en `app.ts`.
 
 ---
 
 ## Casos de Borde y Errores
 
-| Escenario                                        | Resultado Esperado                                      | Código HTTP              |
-| ------------------------------------------------ | ------------------------------------------------------- | ------------------------ |
-| `member_id` vacío o ausente                      | Mensaje: "El campo member_id es requerido"              | 400 Bad Request          |
-| `member_id` no corresponde a ningún socio        | Mensaje: "El socio no existe"                           | 404 Not Found            |
-| Socio con `status` = `Moroso` o `Suspendido`     | Mensaje: "El socio no está en estado Activo"            | 422 Unprocessable Entity |
-| `item_name` vacío o ausente                      | Mensaje: "El nombre del ítem es requerido"              | 400 Bad Request          |
-| `due_date` con formato no ISO 8601               | Mensaje: "Formato de fecha de devolución inválido"      | 400 Bad Request          |
-| `due_date` con fecha en el pasado                | Mensaje: "La fecha de devolución debe ser futura"       | 422 Unprocessable Entity |
-| Creación exitosa                                 | `EquipmentLoanDTO` completo con `status: 'Loaned'`      | 201 Created              |
-| Error de conexión a base de datos                | Mensaje: "Error interno, reintente más tarde"           | 500 Internal Server Error|
+| Escenario                                        | Resultado Esperado                                                              | Código HTTP              |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------------ |
+| `member_id` vacío o ausente                      | Mensaje: "El campo member_id es requerido"                                      | 400 Bad Request          |
+| `member_id` no corresponde a ningún socio        | Mensaje: "El socio no existe"                                                   | 404 Not Found            |
+| Socio con `status` = `Delinquent` o `Inactive`     | Mensaje: "El socio no está en estado Active"                                    | 422 Unprocessable Entity |
+| Socio con `category` = `Cadet`                   | Mensaje: "Los socios Cadet no pueden solicitar préstamos de equipamiento"       | 422 Unprocessable Entity |
+| `item_name` vacío o ausente                      | Mensaje: "El nombre del ítem es requerido"                                      | 400 Bad Request          |
+| `due_date` con formato no ISO 8601               | Mensaje: "Formato de fecha de devolución inválido"                              | 400 Bad Request          |
+| `due_date` con fecha en el pasado                | Mensaje: "La fecha de devolución debe ser futura"                               | 422 Unprocessable Entity |
+| Error de conexión a base de datos                | Mensaje: "Error interno, reintente más tarde"                                   | 500 Internal Server Error|
 
 ---
 
@@ -131,12 +133,12 @@ export interface CreateEquipmentLoanRequest {
 2. Modificar el esquema de persistencia (`schema.prisma`): agregar el enum `LoanStatus`, el modelo `EquipmentLoan` y la relación inversa en `Member`.
 3. Ejecutar la migración de base de datos con el nombre `create_equipment_loans_table`.
 4. Crear el Puerto `EquipmentLoanRepository.ts` en `src/domain/` con todos los métodos del ciclo de vida completo.
-5. Crear el Servicio de Dominio `EquipmentLoanValidator.ts` en `src/domain/services/`, inyectando `MemberRepository`.
+5. Crear el Servicio de Dominio `EquipmentLoanValidator.ts` en `src/domain/services/`, inyectando `MemberRepository`. Implementar los métodos de validación: existencia del socio, estado `Active`, y **restricción por categoría** (solo `Senior` y `Lifetime`; rechazar `Cadet` con mensaje descriptivo).
 6. Implementar `CreateEquipmentLoanUseCase.ts` en `src/application/`.
 7. Implementar `PostgresEquipmentLoanRepository.ts` en `src/infrastructure/` con el método `create` y el mapeo a DTO.
 8. Crear `EquipmentLoanController.ts` en `src/delivery/` con el método `create` y el mapeo de errores.
-9. Registrar las dependencias y la ruta `POST /api/v1/prestamos` en `src/app.ts`.
+9. Registrar las dependencias y la ruta `POST /api/v1/loans` en `src/app.ts`.
 10. Agregar el método `create` al servicio frontend (`packages/web/src/services/loans.ts`).
-11. Crear la vista `EquipmentLoans.tsx` en `packages/web/src/views/` con el formulario de alta y registrar la ruta `/prestamos` en el router.
-12. Escribir tests unitarios: creación exitosa, socio inexistente, socio moroso/suspendido, `due_date` en el pasado, `item_name` vacío.
-13. Escribir tests de integración para el endpoint `POST /api/v1/prestamos`.
+11. Crear la vista `EquipmentLoans.tsx` en `packages/web/src/views/` con el formulario de alta y registrar la ruta `/loans` en el router.
+12. Escribir tests unitarios: creación exitosa, socio inexistente, socio Delinquent/Inactive, **socio con categoría `Cadet`** (debe rechazarse con 422), `due_date` en el pasado, `item_name` vacío.
+13. Escribir tests de integración para el endpoint `POST /api/v1/loans`.
