@@ -1,12 +1,12 @@
 ---
-id: 0024
+id: 0028
 estado: Propuesto
 autor: Joaquin Montes
 fecha: 2026-05-06
 titulo: Listado y Consulta de Casilleros
 ---
 
-# TDD-0024: Listado y Consulta de Casilleros
+# TDD-0028: Listado y Consulta de Casilleros
 
 ## Contexto de Negocio (PRD)
 
