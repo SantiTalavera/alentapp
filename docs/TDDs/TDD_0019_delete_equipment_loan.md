@@ -50,7 +50,7 @@ La operación consiste exclusivamente en **actualizar** el campo `deleted_at` co
 
 No se requieren tipos nuevos en el paquete compartido. Se reutiliza `EquipmentLoanDTO` definido en TDD-0016, que ya incluye el campo `deleted_at`.
 
-- **Endpoint**: `DELETE /api/v1/prestamos/:id`
+- **Endpoint**: `DELETE /api/v1/loans/:id`
 - **Path Parameters**:
   - `id` *(string, UUID, requerido)*: Identificador único del préstamo a eliminar lógicamente.
 - **Request Body**: `None`
@@ -74,7 +74,7 @@ Se amplían los componentes creados en TDD-0016 sin crear nuevos archivos de dom
 
 - **Infrastructure**: El método `softDelete` en `PostgresEquipmentLoanRepository` ejecuta `UPDATE SET deleted_at = now()` y retorna el DTO completo con `deleted_at` poblado mediante el método privado `mapToDTO`.
 
-- **Delivery**: `EquipmentLoanController` expone `DELETE /api/v1/prestamos/:id`, extrae el `id` del path y mapea los errores a `404` (no existe), `422` (estado no permitido) o `500` (error inesperado). En éxito responde `200` con el DTO completo. La ruta se registra en `app.ts`.
+- **Delivery**: `EquipmentLoanController` expone `DELETE /api/v1/loans/:id`, extrae el `id` del path y mapea los errores a `404` (no existe), `422` (estado no permitido) o `500` (error inesperado). En éxito responde `200` con el DTO completo. La ruta se registra en `app.ts`.
 
 ---
 
@@ -98,8 +98,8 @@ Se amplían los componentes creados en TDD-0016 sin crear nuevos archivos de dom
 4. Verificar que los métodos `findAll` y `findById` en `PostgresEquipmentLoanRepository.ts` apliquen el filtro `deleted_at IS NULL` (pre-requisito: TDD-0017 completado).
 5. Crear `DeleteEquipmentLoanUseCase.ts` en `src/application/` con la validación de existencia y la regla de estado permitido.
 6. Agregar el método `delete` al `EquipmentLoanController` con el mapeo de errores correcto (400, 404, 422, 500) y la respuesta `200` con el DTO.
-7. Registrar la ruta `DELETE /api/v1/prestamos/:id` en `src/app.ts`.
+7. Registrar la ruta `DELETE /api/v1/loans/:id` en `src/app.ts`.
 8. Agregar el método `delete` al servicio frontend `loans.ts`.
 9. Enlazar el botón de eliminación en `EquipmentLoans.tsx` con la llamada al servicio, precedida por `window.confirm` para la confirmación explícita del usuario, y eliminar el elemento de la lista local al recibir la respuesta exitosa.
 10. Escribir tests unitarios: eliminación exitosa de préstamo `Loaned`, préstamo inexistente, préstamo ya eliminado lógicamente, intento de eliminar `Returned` o `Damaged`.
-11. Escribir tests de integración para el endpoint `DELETE /api/v1/prestamos/:id`.
+11. Escribir tests de integración para el endpoint `DELETE /api/v1/loans/:id`.

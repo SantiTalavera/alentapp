@@ -1,4 +1,5 @@
 ---
+id: 0006
 autor: Joaquin Montes
 fecha: 2026-05-02
 titulo: Modificación de casillero
@@ -58,12 +59,21 @@ Request:
 Response `200 OK`:
 ```ts
 {
-  id: string;
-  number: number;
-  location: string;
-  status: "Available" | "Occupied" | "Maintenance";
-  member_id: string | null;
-  is_active: boolean;
+  "data": {
+    "id": string;
+    "number": number;
+    "location": string;
+    "status": "Available" | "Occupied" | "Maintenance";
+    "member_id": string | null;
+    "is_active": boolean;
+  }
+}
+```
+
+**Response Body (Errors 4xx / 500)**:
+```ts
+{
+  error: string; // Mensaje descriptivo del error
 }
 ```
 
@@ -79,16 +89,16 @@ Response `200 OK`:
 
 ## Casos de Borde y Errores
 
-| Escenario                                                         | Resultado Esperado                                           | Código HTTP               |
+| Escenario                                                         | Resultado Esperado (JSON)                                    | Código HTTP               |
 |-------------------------------------------------------------------|--------------------------------------------------------------|---------------------------|
-| ID no corresponde a ningún casillero                              | Error: casillero no encontrado                               | 404 Not Found             |
-| `number` ausente en el body                                       | Error: campo requerido                                       | 400 Bad Request           |
-| `number` es cero o negativo                                       | Error: debe ser mayor a cero                                 | 400 Bad Request           |
-| El `number` enviado pertenece a otro casillero                    | Error: número ya está en uso                                 | 409 Conflict              |
-| `status` con valor fuera de los permitidos                        | Error: estado no válido                                      | 400 Bad Request           |
-| `status: "Maintenance"` con `member_id` no nulo                  | Error: casillero en mantenimiento no puede tener socio       | 422 Unprocessable Entity  |
-| `member_id` presente y el status actual/nuevo es `"Maintenance"` | Error: no se puede asignar socio en este estado              | 422 Unprocessable Entity  |
-| Fallo inesperado en la base de datos                              | Error interno                                                | 500 Server Error          |
+| ID no corresponde a ningún casillero                              | `{ "error": "casillero no encontrado" }`                     | 404 Not Found             |
+| `number` ausente en el body                                       | `{ "error": "campo requerido" }`                             | 400 Bad Request           |
+| `number` es cero o negativo                                       | `{ "error": "debe ser mayor a cero" }`                       | 400 Bad Request           |
+| El `number` enviado pertenece a otro casillero                    | `{ "error": "número ya está en uso" }`                       | 409 Conflict              |
+| `status` con valor fuera de los permitidos                        | `{ "error": "estado no válido" }`                            | 400 Bad Request           |
+| `status: "Maintenance"` con `member_id` no nulo                  | `{ "error": "casillero en mantenimiento no puede tener socio" }` | 422 Unprocessable Entity  |
+| `member_id` presente y el status actual/nuevo es `"Maintenance"` | `{ "error": "no se puede asignar socio en este estado" }`    | 422 Unprocessable Entity  |
+| Fallo inesperado en la base de datos                              | `{ "error": "Error interno" }`                               | 500 Server Error          |
 
 ## Plan de Implementación
 

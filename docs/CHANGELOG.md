@@ -43,6 +43,8 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - `docs/TDDs/TDD_0025` TDD de la Entidad Enrollment: Modificación de inscripción
 - `docs/TDDs/TDD_0026` TDD de la Entidad Enrollment: Baja de inscripción
 - `docs/TDDs/TDD_0027` TDD de la Entidad Enrollment: Listado de inscripciones
+- `docs/TDDs/TDD_0028` TDD de la Entidad Locker: Listado y Consulta de Casilleros
+
 ### Changed
 
 ---
