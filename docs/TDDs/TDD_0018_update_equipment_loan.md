@@ -53,7 +53,7 @@ Los estados `Returned` y `Damaged` son **estados terminales**: una vez alcanzado
 
 Se añade la interfaz `UpdateEquipmentLoanRequest` al paquete compartido. Todos los campos son opcionales para soportar la actualización parcial.
 
-- **Endpoint**: `PATCH /api/v1/prestamos/:id`
+- **Endpoint**: `PATCH /api/v1/loans/:id`
 - **Path Parameters**:
   - `id` *(string, UUID, requerido)*: Identificador del préstamo a actualizar.
 - **Request Body** (`UpdateEquipmentLoanRequest`):
@@ -85,7 +85,7 @@ Se amplían los componentes creados en TDD-0016 sin crear nuevos archivos de inf
 
 - **Infrastructure**: El método `update` en `PostgresEquipmentLoanRepository` construye dinámicamente el objeto de actualización incluyendo solo los campos enviados en el request (actualización parcial) y retorna el DTO completo actualizado.
 
-- **Delivery**: `EquipmentLoanController` expone `PATCH /api/v1/prestamos/:id`, extrae el `id` del path y el body como `UpdateEquipmentLoanRequest`, y mapea los errores a `404`, `422` o `400` según corresponda. La ruta se registra en `app.ts`.
+- **Delivery**: `EquipmentLoanController` expone `PATCH /api/v1/loans/:id`, extrae el `id` del path y el body como `UpdateEquipmentLoanRequest`, y mapea los errores a `404`, `422` o `400` según corresponda. La ruta se registra en `app.ts`.
 
 ---
 
@@ -111,8 +111,8 @@ Se amplían los componentes creados en TDD-0016 sin crear nuevos archivos de inf
 4. Crear `UpdateEquipmentLoanUseCase.ts` en `src/application/` con el flujo de orquestación completo.
 5. Implementar el método `update` en `PostgresEquipmentLoanRepository.ts` con actualización parcial.
 6. Agregar el método `update` al `EquipmentLoanController` con el mapeo de errores correcto.
-7. Registrar la ruta `PATCH /api/v1/prestamos/:id` en `src/app.ts`.
+7. Registrar la ruta `PATCH /api/v1/loans/:id` en `src/app.ts`.
 8. Agregar el método `update` al servicio frontend `loans.ts`.
 9. Conectar los botones de acción ("Marcar devuelto", "Marcar dañado") en la vista `EquipmentLoans.tsx`.
 10. Escribir tests unitarios: actualización exitosa (`Loaned → Returned`, `Loaned → Damaged`), préstamo inexistente, transición desde estado terminal, `due_date` con formato inválido, body vacío.
-11. Escribir tests de integración para el endpoint `PATCH /api/v1/prestamos/:id`.
+11. Escribir tests de integración para el endpoint `PATCH /api/v1/loans/:id`.
