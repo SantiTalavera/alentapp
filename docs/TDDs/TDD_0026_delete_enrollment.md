@@ -2,7 +2,7 @@
 id: 0026
 estado: Propuesto
 autor: Nicolás Pérez
-fecha: 2026-05-05
+fecha: 2026-05-06
 titulo: Baja de Inscripción Existente
 ---
 
