@@ -38,7 +38,11 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - `docs/TDDs/TDD_0020` TDD de la Entidad Discipline: Registro de nueva disciplina
 - `docs/TDDs/TDD_0021` TDD de la Entidad Discipline: Modificación de disciplina
 - `docs/TDDs/TDD_0022` TDD de la Entidad Discipline: Baja de disciplina
-
+- `docs/TDDs/TDD_0023` TDD de la Entidad Sport: Listado de deportes
+- `docs/TDDs/TDD_0024` TDD de la Entidad Enrollment: Registro de una nueva inscripción
+- `docs/TDDs/TDD_0025` TDD de la Entidad Enrollment: Modificación de inscripción
+- `docs/TDDs/TDD_0026` TDD de la Entidad Enrollment: Baja de inscripción
+- `docs/TDDs/TDD_0027` TDD de la Entidad Enrollment: Listado de inscripciones
 ### Changed
 
 ---
