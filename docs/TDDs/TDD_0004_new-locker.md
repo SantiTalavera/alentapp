@@ -1,4 +1,5 @@
 ---
+id: 0004
 autor: Joaquin Montes
 fecha: 2026-05-02
 titulo: Alta de casillero
@@ -46,7 +47,7 @@ Valores válidos para `status`: `Available`, `Occupied`, `Maintenance`.
 
 **`POST /api/v1/lockers`**
 
-Request:
+**Request Body** (`CreateLockerRequest`):
 ```ts
 {
   number: number;    // requerido, entero > 0
@@ -54,14 +55,23 @@ Request:
 }
 ```
 
-Response `201 Created`:
+**Response Body (Success 201)**:
 ```ts
 {
-  id: string;
-  number: number;
-  location: string;
-  status: "Available" | "Occupied" | "Maintenance";
-  is_active: boolean;
+  "data": {
+    "id": string;
+    "number": number;
+    "location": string;
+    "status": "Available" | "Occupied" | "Maintenance";
+    "is_active": boolean;
+  }
+}
+```
+
+**Response Body (Errors 4xx / 500)**:
+```ts
+{
+  error: string; // Mensaje descriptivo del error
 }
 ```
 
@@ -75,13 +85,13 @@ Response `201 Created`:
 
 ## Casos de Borde y Errores
 
-| Escenario                              | Resultado Esperado                              | Código HTTP      |
+| Escenario                              | Resultado Esperado (JSON)                       | Código HTTP      |
 |----------------------------------------|-------------------------------------------------|------------------|
-| Falta el campo `number`                | Error: campo requerido                          | 400 Bad Request  |
-| Falta el campo `location`              | Error: campo requerido                          | 400 Bad Request  |
-| `number` es cero o negativo            | Error: debe ser mayor a cero                    | 400 Bad Request  |
-| `number` pertenece a un casillero existente | Error: número de casillero ya registrado   | 409 Conflict     |
-| Fallo inesperado en la base de datos   | Error interno                                   | 500 Server Error |
+| Falta el campo `number`                | `{ "error": "campo requerido" }`                | 400 Bad Request  |
+| Falta el campo `location`              | `{ "error": "campo requerido" }`                | 400 Bad Request  |
+| `number` es cero o negativo            | `{ "error": "debe ser mayor a cero" }`          | 400 Bad Request  |
+| `number` pertenece a un casillero existente | `{ "error": "número de casillero ya registrado" }` | 409 Conflict     |
+| Fallo inesperado en la base de datos   | `{ "error": "Error interno" }`                  | 500 Server Error |
 
 ## Plan de Implementación
 
