@@ -38,6 +38,7 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - `docs/TDDs/TDD_0020` TDD de la Entidad Discipline: Registro de nueva disciplina
 - `docs/TDDs/TDD_0021` TDD de la Entidad Discipline: Modificación de disciplina
 - `docs/TDDs/TDD_0022` TDD de la Entidad Discipline: Baja de disciplina
+- `docs/TDDs/TDD_0028` TDD de la Entidad Locker: Listado y Consulta de Casilleros
 
 ### Changed
 
