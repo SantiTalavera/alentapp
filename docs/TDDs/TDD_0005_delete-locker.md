@@ -1,4 +1,5 @@
 ---
+id: 0005
 autor: Joaquin Montes
 fecha: 2026-05-02
 titulo: Eliminar casillero
@@ -49,11 +50,20 @@ Request: sin body.
 Response `200 OK`:
 ```ts
 {
-  id: string;
-  number: number;
-  location: string;
-  status: "Available" | "Occupied" | "Maintenance";
-  is_active: boolean;  // siempre false en esta respuesta
+  "data": {
+    "id": string;
+    "number": number;
+    "location": string;
+    "status": "Available" | "Occupied" | "Maintenance";
+    "is_active": boolean; // siempre false en esta respuesta
+  }
+}
+```
+
+**Response Body (Errors 4xx / 500)**:
+```ts
+{
+  error: string; // Mensaje descriptivo del error
 }
 ```
 
@@ -67,11 +77,11 @@ Response `200 OK`:
 
 ## Casos de Borde y Errores
 
-| Escenario                           | Resultado Esperado                                    | Código HTTP      |
+| Escenario                           | Resultado Esperado (JSON)                             | Código HTTP      |
 |-------------------------------------|-------------------------------------------------------|------------------|
-| El ID no corresponde a ningún casillero | Error: casillero no encontrado                    | 404 Not Found    |
-| El casillero ya tiene `is_active: false` | Error: el casillero ya fue dado de baja          | 409 Conflict     |
-| Fallo inesperado en la base de datos | Error interno                                        | 500 Server Error |
+| El ID no corresponde a ningún casillero | `{ "error": "casillero no encontrado" }`              | 404 Not Found    |
+| El casillero ya tiene `is_active: false` | `{ "error": "el casillero ya fue dado de baja" }`    | 409 Conflict     |
+| Fallo inesperado en la base de datos | `{ "error": "Error interno" }`                        | 500 Server Error |
 
 ## Plan de Implementación
 
