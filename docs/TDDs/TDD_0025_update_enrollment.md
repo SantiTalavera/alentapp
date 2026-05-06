@@ -31,6 +31,7 @@ Permitir que un administrativo modifique el estado de una inscripción existente
   - validar que el deporte exista y no esté eliminado lógicamente;
   - validar que no exista otra inscripción activa para el mismo `member_id` y `sport_id`;
   - validar que el cupo del deporte no esté completo.
+- Si `is_active` pasa de `true` a `false`, el sistema debe desactivar la inscripción sin ejecutar validaciones adicionales de cupo, duplicados, socio o deporte.
 - El campo `enrollment_date` no debe modificarse bajo ninguna circunstancia.
 - Al completarse correctamente la operación, el sistema debe guardar la inscripción con su nuevo estado de vigencia.
 
