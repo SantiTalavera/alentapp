@@ -27,7 +27,7 @@ Permitir que un administrativo registre la inscripción de un socio a un deporte
 - El sistema debe validar que el socio exista.
 - El sistema debe validar que el deporte exista.
 - El sistema debe validar que el deporte no esté eliminado lógicamente (`deleted_at` en `null`).
-- El sistema debe validar que el socio tenga estado de cuenta activo.
+- El sistema debe validar que el socio tenga estado activo.
 - El sistema debe validar que no exista otra inscripción activa para el mismo `member_id` y `sport_id`.
 - El sistema debe validar que el cupo máximo del deporte no esté completo considerando solo inscripciones activas. 
 - El sistema debe generar automáticamente `enrollment_date` con la fecha actual del servidor.
@@ -109,7 +109,7 @@ export interface CreateEnrollmentRequest {
 
 - **Domain**: El puerto `EnrollmentRepository` define el contrato de persistencia para la entidad. El servicio `EnrollmentValidator` concentra las reglas de negocio: valida duplicados activos, cupo disponible, existencia y estado del socio, y disponibilidad del deporte. El puerto se define completo desde el inicio para que los casos de uso de alta, modificación, baja y consulta compartan la misma interfaz.
 
-- **Application**: `CreateEnrollmentUseCase` orquesta el flujo sin conocer HTTP ni la base de datos: recibe `member_id` y `sport_id`, verifica que el socio exista y tenga estado de cuenta activo, verifica que el deporte exista y no esté eliminado lógicamente, valida que no exista una inscripción activa duplicada, valida que el cupo no esté completo y delega la persistencia al repositorio.
+- **Application**: `CreateEnrollmentUseCase` orquesta el flujo sin conocer HTTP ni la base de datos: recibe `member_id` y `sport_id`, verifica que el socio exista y tenga estado activo, verifica que el deporte exista y no esté eliminado lógicamente, valida que no exista una inscripción activa duplicada, valida que el cupo no esté completo y delega la persistencia al repositorio.
 
 - **Infrastructure**: `PostgresEnrollmentRepository` implementa el puerto con Prisma. Para este caso de uso expone `create`, `findActiveByMemberAndSport` y `countActiveBySportId`. Además, el caso de uso se apoya en `MemberRepository` y `SportRepository` para consultar los datos necesarios de socio y deporte.
 
