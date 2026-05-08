@@ -88,7 +88,7 @@ Se reutiliza `MedicalCertificateDTO`, definido en el TDD-0010 de alta. No se añ
 ## Plan de Implementación
 
 1. Verificar que `MedicalCertificateDTO` ya esté definido en `@alentapp/shared`.
-2. Confirmar que el puerto `MedicalCertificateRepository` incluya los métodos `findByMemberId(memberId)` y `findById(id)`.
+2. Confirmar que el `MedicalCertificateRepository` incluya el método `findById(id)` y ampliar el puerto con `findByMemberId(memberId)`.
 3. Implementar `findByMemberId` y `findById` en `PostgresMedicalCertificateRepository`.
 4. Implementar los casos de uso en `src/application/`.
 5. Agregar los métodos al `MedicalCertificateController`.
