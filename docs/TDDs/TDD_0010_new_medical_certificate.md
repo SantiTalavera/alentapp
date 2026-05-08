@@ -1,5 +1,6 @@
 ---
 id: 0010
+estado: propuesto
 autor: Agustina Pilar Egüen
 fecha: 2026-05-02
 titulo: Registro de Certificados Médicos
@@ -15,7 +16,7 @@ Permitir a los administrativos registrar el certificado médico de aptitud físi
 
 ### User Persona
 
-- **Nombre**: Alberto (Tesorero/Administrativo).
+- **Nombre**: Administrativo del club.
 - **Necesidad**: Cargar el certificado médico de un socio al inicio de cada temporada o cuando uno nuevo es presentado en ventanilla. Necesita que el proceso sea atómico: no puede quedar el socio sin certificado activo ni con dos certificados activos simultáneamente.
 
 ### Criterios de Aceptación
@@ -45,11 +46,21 @@ Se definirá la entidad `MedicalCertificate` con las siguientes propiedades y re
 
 ### Contrato de API (`@alentapp/shared`)
 
+Se añaden los siguientes tipos al paquete compartido `packages/shared/index.ts`. Estos tipos son la fuente de verdad compartida entre el frontend y el backend.
+
 - **Endpoint**: `POST /api/v1/medical-certificates`
-- **Request Body** (`CreateMedicalCertificateRequest`):
 
 ```ts
-{
+export interface MedicalCertificateDTO {
+    id: string;                 // UUID
+    member_id: string;          // UUID del socio
+    issue_date: string;         // ISO Date String (YYYY-MM-DD)
+    expiry_date: string;        // ISO Date String (YYYY-MM-DD)
+    doctor_license: string;     // Número de matrícula del médico emisor
+    is_validated: boolean;      // Indica si es el certificado activo
+}
+
+export interface CreateMedicalCertificateRequest {
     member_id: string;          // UUID del socio
     issue_date: string;         // ISO Date String (YYYY-MM-DD)
     expiry_date: string;        // ISO Date String (YYYY-MM-DD)
@@ -57,28 +68,23 @@ Se definirá la entidad `MedicalCertificate` con las siguientes propiedades y re
 }
 ```
 
-- **Response** (`201 Created`):
+- **Response exitosa** (`201 Created`):
 
 ```ts
 {
-    id: string;
-    member_id: string;
-    issue_date: string;
-    expiry_date: string;
-    doctor_license: string;
-    is_validated: boolean;       // Siempre true al momento de creación
+  data: MedicalCertificateDTO
 }
 ```
 
 ### Componentes de Arquitectura Hexagonal
 
-1. **Puerto**: `MedicalCertificateRepository` — Métodos requeridos:
-   - `findActiveByMemberId(memberId: string): Promise<MedicalCertificate[]>`
-   - `invalidateAllByMemberId(memberId: string): Promise<void>`
-   - `create(data: MedicalCertificate): Promise<MedicalCertificate>`
-2. **Caso de Uso**: `CreateMedicalCertificateUseCase` — Orquesta la validación de existencia del socio, la verificación de fechas, la invalidación de certificados previos y la creación del nuevo registro, todo dentro de una transacción atómica.
-3. **Adaptador de Salida**: `PostgresMedicalCertificateRepository` — Implementa el puerto usando Prisma; utiliza `prisma.$transaction` para garantizar atomicidad entre el `updateMany` de invalidación y el `create`.
-4. **Adaptador de Entrada**: `MedicalCertificateController` — Ruta HTTP que parsea el body, delega al caso de uso y devuelve `201 Created` con el recurso creado.
+- **Domain**: el puerto `MedicalCertificateRepository` define el contrato de persistencia con los métodos requeridos: `findActiveByMemberId`, `invalidateAllByMemberId` y `create`. Se aplican las reglas de negocio, como validar que el `expiry_date` sea posterior al `issue_date`. El puerto se define completo desde el inicio.
+
+- **Application**: `CreateMedicalCertificateUseCase` orquesta el flujo sin conocer HTTP ni la base de datos: valida la existencia del socio, verifica la coherencia de fechas, invalida certificados previos y crea el nuevo registro, todo de forma atómica.
+
+- **Infrastructure**: `PostgresMedicalCertificateRepository` implementa el puerto usando Prisma; utiliza `prisma.$transaction` para garantizar atomicidad entre el `updateMany` de invalidación y el `create`, mapeando el resultado a `MedicalCertificateDTO`.
+
+- **Delivery**: `MedicalCertificateController` expone `POST /api/v1/medical-certificates`, valida el body tipado como `CreateMedicalCertificateRequest`, delega al caso de uso y devuelve `201 Created` con `{ data: MedicalCertificateDTO }`. La ruta y las dependencias se registran en `app.ts`.
 
 ---
 

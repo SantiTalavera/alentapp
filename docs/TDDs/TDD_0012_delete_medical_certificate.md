@@ -1,5 +1,6 @@
 ---
 id: 0012
+estado: propuesto
 autor: Agustina Pilar Egüen
 fecha: 2026-05-02
 titulo: Eliminación de Certificados Médicos
@@ -15,7 +16,7 @@ Permitir a los administrativos eliminar permanentemente un certificado médico d
 
 ### User Persona
 
-- **Nombre**: Alberto (Tesorero/Administrativo).
+- **Nombre**: Administrativo del club.
 - **Necesidad**: Borrar un certificado duplicado o cargado por error desde la tabla de gestión del socio. Necesita una advertencia visual antes de proceder para evitar eliminar un registro válido por accidente.
 
 ### Criterios de Aceptación
@@ -40,12 +41,13 @@ Al tratarse de una operación destructiva que solo requiere el identificador, no
 
 ### Componentes de Arquitectura Hexagonal
 
-1. **Puerto**: `MedicalCertificateRepository` — Método adicional requerido:
-   - `findById(id: string): Promise<MedicalCertificate | null>` (compartido con TDD-0011)
-   - `delete(id: string): Promise<void>`
-2. **Caso de Uso**: `DeleteMedicalCertificateUseCase` — Verifica la existencia del certificado mediante `findById` y, si existe, delega la eliminación al repositorio.
-3. **Adaptador de Salida**: `PostgresMedicalCertificateRepository` — Eliminación física usando el método `delete` de Prisma filtrado por `id`.
-4. **Adaptador de Entrada**: `MedicalCertificateController` — Ruta HTTP que extrae el `id` de la URL, delega al caso de uso y devuelve `204 No Content` ante éxito.
+- **Domain**: el puerto `MedicalCertificateRepository` incluye el método `delete` (y comparte `findById`). Aquí se define el contrato para el borrado físico sin lógica de estado.
+
+- **Application**: `DeleteMedicalCertificateUseCase` verifica la existencia del certificado mediante `findById` y, si existe, delega la eliminación física al repositorio.
+
+- **Infrastructure**: `PostgresMedicalCertificateRepository` implementa la eliminación física usando el método `delete` de Prisma filtrado por `id`.
+
+- **Delivery**: `MedicalCertificateController` expone `DELETE /api/v1/medical-certificates/:id`, extrae el `id` de la URL, delega al caso de uso y devuelve `204 No Content` ante el borrado exitoso.
 
 ---
 

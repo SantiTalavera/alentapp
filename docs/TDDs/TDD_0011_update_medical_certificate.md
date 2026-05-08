@@ -1,5 +1,6 @@
 ---
 id: 0011
+estado: propuesto
 autor: Agustina Pilar Egüen
 fecha: 2026-05-02
 titulo: Actualización de Certificados Médicos Existentes
@@ -15,7 +16,7 @@ Permitir a los administrativos corregir datos de un certificado médico ya regis
 
 ### User Persona
 
-- **Nombre**: Alberto (Tesorero/Administrativo).
+- **Nombre**: Administrativo del club.
 - **Necesidad**: Corregir un error de tipeo en la matrícula del médico o en la fecha de vencimiento detectado después de guardar el formulario. Necesita poder modificar solo los campos afectados sin alterar el resto del registro ni el estado de validez del certificado.
 
 ### Criterios de Aceptación
@@ -35,38 +36,32 @@ Permitir a los administrativos corregir datos de un certificado médico ya regis
 Se trata de una actualización parcial a nivel de negocio. Todos los campos del body son opcionales.
 
 - **Endpoint**: `PATCH /api/v1/medical-certificates/:id`
-- **Request Body** (`UpdateMedicalCertificateRequest`):
 
 ```ts
-{
+export interface UpdateMedicalCertificateRequest {
     issue_date?: string;        // ISO Date (YYYY-MM-DD)
     expiry_date?: string;       // ISO Date (YYYY-MM-DD)
     doctor_license?: string;    // Número de matrícula del médico emisor
 }
 ```
 
-- **Response** (`200 OK`):
+- **Response exitosa** (`200 OK`):
 
 ```ts
 {
-    id: string;
-    member_id: string;
-    issue_date: string;
-    expiry_date: string;
-    doctor_license: string;
-    is_validated: boolean;
+  data: MedicalCertificateDTO
 }
 ```
 
 ### Componentes de Arquitectura Hexagonal
 
-1. **Puerto**: `MedicalCertificateRepository` — Método adicional requerido:
-   - `findById(id: string): Promise<MedicalCertificate | null>`
-   - `update(id: string, data: Partial<MedicalCertificate>): Promise<MedicalCertificate>`
-2. **Servicio de Dominio**: `MedicalCertificateValidator` — Centraliza la validación de coherencia de fechas (`expiry_date > issue_date`), reutilizable desde el caso de uso de creación (TDD-0010) y este.
-3. **Caso de Uso**: `UpdateMedicalCertificateUseCase` — Recupera el registro existente, rechaza la petición si se envía `member_id`, aplica los campos entrantes sobre los actuales, valida la coherencia de fechas resultante y delega la persistencia al repositorio.
-4. **Adaptador de Salida**: `PostgresMedicalCertificateRepository` — Actualización usando el método `update` de Prisma sobre el campo `id`.
-5. **Adaptador de Entrada**: `MedicalCertificateController` — Ruta HTTP que extrae el `id` de la URL, parsea el body parcial, delega al caso de uso y mapea las excepciones de dominio a códigos HTTP.
+- **Domain**: el puerto `MedicalCertificateRepository` incluye los métodos `findById` y `update`. El servicio `MedicalCertificateValidator` centraliza la validación de coherencia de fechas (`expiry_date > issue_date`), reutilizable entre casos de uso.
+
+- **Application**: `UpdateMedicalCertificateUseCase` orquesta el flujo: recupera el registro existente, rechaza la petición si se envía `member_id`, aplica los campos entrantes sobre los actuales, valida la coherencia de fechas resultante y delega la persistencia al repositorio.
+
+- **Infrastructure**: `PostgresMedicalCertificateRepository` implementa la actualización usando el método `update` de Prisma sobre el campo `id`, y mapea el resultado a `MedicalCertificateDTO`.
+
+- **Delivery**: `MedicalCertificateController` expone `PATCH /api/v1/medical-certificates/:id`, extrae el `id` de la URL, valida el body tipado como `UpdateMedicalCertificateRequest`, delega al caso de uso y devuelve `200 OK` con `{ data: MedicalCertificateDTO }`.
 
 ---
 
