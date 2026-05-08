@@ -79,13 +79,13 @@ Se trata de una actualización parcial a nivel de negocio. Todos los campos perm
 
 ### Componentes de Arquitectura Hexagonal
 
-1. **Puerto**: `DisciplineRepository` — Métodos requeridos:
-    - `findById(id: string): Promise<Discipline | null>`
-    - `update(id: string, data: Partial<Discipline>): Promise<Discipline>`
-2. **Servicio de Dominio**: `DisciplineValidator` — Centraliza la validación de campos modificables, body no vacío y coherencia de fechas (`end_date > start_date`).
-3. **Caso de Uso**: `UpdateDisciplineUseCase` — Recupera el registro existente, rechaza la petición si se envía `member_id`, aplica los campos entrantes sobre los actuales, valida la coherencia de fechas resultante y delega la persistencia al repositorio.
-4. **Adaptador de Salida**: `PostgresDisciplineRepository` — Actualización usando el método `update` de Prisma sobre el campo `id`.
-5. **Adaptador de Entrada**: `DisciplineController` — Ruta HTTP que extrae el `id` de la URL, parsea el body parcial, delega al caso de uso y mapea las excepciones de dominio a códigos HTTP.
+- **Domain**: el puerto `DisciplineRepository` incluye `findById` para recuperar el estado actual de la disciplina y `update` para persistir solo los campos permitidos. El servicio `DisciplineValidator` centraliza la validación de body no vacío, campos modificables y coherencia de fechas (`end_date > start_date`) usando los valores resultantes de combinar el estado actual con el request parcial.
+
+- **Application**: `UpdateDisciplineUseCase` orquesta el flujo de modificación: recupera el registro existente, rechaza la petición si se intenta modificar `member_id`, aplica los campos entrantes sobre los valores actuales, valida la disciplina resultante y delega la persistencia al repositorio.
+
+- **Infrastructure**: `PostgresDisciplineRepository` implementa la actualización usando Prisma sobre el campo `id`, persistiendo únicamente los campos admitidos por el caso de uso y mapeando el resultado a `DisciplineDTO`.
+
+- **Delivery**: `DisciplineController` expone `PATCH /api/v1/disciplines/:id`, extrae el `id` de la URL, valida el body tipado como `UpdateDisciplineRequest`, delega al caso de uso y mapea las excepciones de dominio a los códigos HTTP correspondientes.
 
 ---
 

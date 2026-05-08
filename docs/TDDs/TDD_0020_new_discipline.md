@@ -77,14 +77,13 @@ Entidad involucrada: `Discipline`.
 
 ### Componentes de Arquitectura Hexagonal
 
-1. **Puerto**: `DisciplineRepository` — Métodos requeridos:
-    - `create(data: Discipline): Promise<Discipline>`
-2. **Puerto relacionado**: `MemberRepository` — Método requerido:
-    - `findById(id: string): Promise<Member | null>`
-3. **Servicio de Dominio**: `DisciplineValidator` — Centraliza la validación de campos obligatorios y coherencia de fechas (`end_date > start_date`).
-4. **Caso de Uso**: `CreateDisciplineUseCase` — Orquesta la validación de existencia del socio, valida los datos de la disciplina y delega la persistencia al repositorio.
-5. **Adaptador de Salida**: `PostgresDisciplineRepository` — Implementa el puerto usando Prisma y persiste la nueva disciplina.
-6. **Adaptador de Entrada**: `DisciplineController` — Ruta HTTP que parsea el body, delega al caso de uso y devuelve `201 Created` con el recurso creado.
+- **Domain**: el puerto `DisciplineRepository` define el contrato de persistencia necesario para registrar una nueva disciplina mediante `create`. El puerto relacionado `MemberRepository` se utiliza para verificar que el socio indicado por `member_id` exista antes de crear la sanción. El servicio `DisciplineValidator` centraliza las reglas propias de la entidad: campos obligatorios, tipo booleano de `is_total_suspension` y coherencia de fechas (`end_date > start_date`).
+
+- **Application**: `CreateDisciplineUseCase` orquesta el flujo sin conocer HTTP ni la base de datos: valida la existencia del socio, aplica las reglas de `DisciplineValidator`, construye la disciplina y delega la persistencia al repositorio.
+
+- **Infrastructure**: `PostgresDisciplineRepository` implementa el puerto usando Prisma y persiste la nueva disciplina en la tabla correspondiente, mapeando el resultado al DTO compartido.
+
+- **Delivery**: `DisciplineController` expone `POST /api/v1/disciplines`, valida el body tipado como `CreateDisciplineRequest`, delega al caso de uso y devuelve `201 Created` con `{ data: DisciplineDTO }`. La ruta y las dependencias se registran en `app.ts`.
 
 ---
 

@@ -52,12 +52,13 @@ Al tratarse de una operación destructiva que solo requiere el identificador, no
 
 ### Componentes de Arquitectura Hexagonal
 
-1. **Puerto**: `DisciplineRepository` — Métodos requeridos:
-    - `findById(id: string): Promise<Discipline | null>`
-    - `delete(id: string): Promise<void>`
-2. **Caso de Uso**: `DeleteDisciplineUseCase` — Verifica la existencia de la disciplina mediante `findById` y, si existe, delega la eliminación al repositorio.
-3. **Adaptador de Salida**: `PostgresDisciplineRepository` — Eliminación física usando el método `delete` de Prisma filtrado por `id`.
-4. **Adaptador de Entrada**: `DisciplineController` — Ruta HTTP que extrae el `id` de la URL, delega al caso de uso y devuelve `204 No Content` ante éxito.
+- **Domain**: el puerto `DisciplineRepository` incluye `findById` para verificar que la disciplina exista antes de ejecutar una operación destructiva y `delete` para representar el borrado físico definido por este TDD. No se agrega lógica de baja porque el DER no contempla un campo de eliminación lógica para `Discipline`.
+
+- **Application**: `DeleteDisciplineUseCase` orquesta la baja: recupera la disciplina por `id`, lanza el error de dominio correspondiente si no existe y, si existe, delega la eliminación al repositorio.
+
+- **Infrastructure**: `PostgresDisciplineRepository` implementa la eliminación física usando Prisma filtrado por `id`, respetando la decisión de no mantener un marcador de baja lógica para esta entidad.
+
+- **Delivery**: `DisciplineController` expone `DELETE /api/v1/disciplines/:id`, extrae el `id` de la URL, delega al caso de uso y devuelve `204 No Content` ante el borrado exitoso.
 
 ---
 
