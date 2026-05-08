@@ -6,11 +6,45 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
 ## [Sin publicar]
 
-### Added
-
 <!-- Listar acá los cambios que están en main pero aún no tienen versión asignada -->
 
+### Added
+
+- `docs/TDDs/TDD_0023` TDD de la Entidad Sport: Listado de deportes (#10)
+- `docs/TDDs/TDD_0028` TDD de la Entidad Locker: Listado y Consulta de Casilleros (#12)
+- `docs/TDDs/TDD_0024` TDD de la Entidad Enrollment: Registro de una nueva inscripción (#13)
+- `docs/TDDs/TDD_0025` TDD de la Entidad Enrollment: Modificación de inscripción (#13)
+- `docs/TDDs/TDD_0026` TDD de la Entidad Enrollment: Baja de inscripción (#13)
+- `docs/TDDs/TDD_0027` TDD de la Entidad Enrollment: Listado de inscripciones (#13)
+- `docs/TDDs/TDD_0029` TDD de la Entidad MedicalCertificate: Listado y Consulta de certificados (#14)
+
+### Changed
+
+- `docs/TDDs/TDD_0007` TDD de la Entidad Sport: Registro de nuevo deporte (#10)
+- `docs/TDDs/TDD_0008` TDD de la Entidad Sport: Modificación de nuevo deporte (#10)
+- `docs/TDDs/TDD_0009` TDD de la Entidad Sport: Baja de nuevo deporte (#10)
+- `docs/TDDs/TDD_0016` TDD de la Entidad EquipmentLoan: Registro de nuevo préstamo (#11)
+- `docs/TDDs/TDD_0017` TDD de la Entidad EquipmentLoan: Listado de préstamos (#11)
+- `docs/TDDs/TDD_0018` TDD de la Entidad EquipmentLoan: Modificación de préstamo (#11)
+- `docs/TDDs/TDD_0019` TDD de la Entidad EquipmentLoan: Baja de préstamo (#11)
+- `docs/TDDs/TDD_0004` TDD de la Entidad Locker: Registro de nuevo locker (#12)
+- `docs/TDDs/TDD_0005` TDD de la Entidad Locker: Baja de locker (#12)
+- `docs/TDDs/TDD_0006` TDD de la Entidad Locker: Modificación de locker (#12)
+- `docs/TDDs/TDD_0010` TDD de la Entidad MedicalCertificate: Registro de nuevo certificado (#14)
+- `docs/TDDs/TDD_0011` TDD de la Entidad MedicalCertificate: Actualización de certificado (#14)
+- `docs/TDDs/TDD_0012` TDD de la Entidad MedicalCertificate: Baja de certificado (#14)
+
 ---
+
+## [0.2.0] - YYYY-MM-DD
+
+### Added
+
+-
+
+### Changed
+
+-
 
 ## [0.1.0] — 2026-05-03
 
@@ -18,35 +52,26 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
 ### Added
 
-- `.github/pull_request_template.md` con template estándar para PRs
-- `docs/TDDs/TDD_0004` TDD de la Entidad Locker: Registro de nuevo locker
-- `docs/TDDs/TDD_0005` TDD de la Entidad Locker: Baja de locker
-- `docs/TDDs/TDD_0006` TDD de la Entidad Locker: Modificación de locker
-- `docs/TDDs/TDD_0007` TDD de la Entidad Sport: Registro de nuevo deporte
-- `docs/TDDs/TDD_0008` TDD de la Entidad Sport: Modificación de nuevo deporte
-- `docs/TDDs/TDD_0009` TDD de la Entidad Sport: Baja de nuevo deporte
-- `docs/TDDs/TDD_0010` TDD de la Entidad MedicalCertificate: Registro de nuevo certificado
-- `docs/TDDs/TDD_0011` TDD de la Entidad MedicalCertificate: Actualización de certificado
-- `docs/TDDs/TDD_0012` TDD de la Entidad MedicalCertificate: Baja de certificado
-- `docs/TDDs/TDD_0013` TDD de la Entidad Payment: Registro de nuevo payment
-- `docs/TDDs/TDD_0014` TDD de la Entidad Payment: Baja de payment
-- `docs/TDDs/TDD_0015` TDD de la Entidad Payment: Modificación de payment
-- `docs/TDDs/TDD_0016` TDD de la Entidad EquipmentLoan: Registro de nuevo préstamo
-- `docs/TDDs/TDD_0017` TDD de la Entidad EquipmentLoan: Listado de préstamos
-- `docs/TDDs/TDD_0018` TDD de la Entidad EquipmentLoan: Modificación de préstamo
-- `docs/TDDs/TDD_0019` TDD de la Entidad EquipmentLoan: Baja de préstamo
-- `docs/TDDs/TDD_0020` TDD de la Entidad Discipline: Registro de nueva disciplina
-- `docs/TDDs/TDD_0021` TDD de la Entidad Discipline: Modificación de disciplina
-- `docs/TDDs/TDD_0022` TDD de la Entidad Discipline: Baja de disciplina
-- `docs/TDDs/TDD_0023` TDD de la Entidad Sport: Listado de deportes
-- `docs/TDDs/TDD_0024` TDD de la Entidad Enrollment: Registro de una nueva inscripción
-- `docs/TDDs/TDD_0025` TDD de la Entidad Enrollment: Modificación de inscripción
-- `docs/TDDs/TDD_0026` TDD de la Entidad Enrollment: Baja de inscripción
-- `docs/TDDs/TDD_0027` TDD de la Entidad Enrollment: Listado de inscripciones
-- `docs/TDDs/TDD_0028` TDD de la Entidad Locker: Listado y Consulta de Casilleros
-- `docs/TDDs/TDD_0029` TDD de la Entidad MedicalCertificate: Listado y Consulta de certificados
-
-### Changed
+- `.github/pull_request_template.md` con template estándar para PRs (#1)
+- `docs/TDDs/TDD_0004` TDD de la Entidad Locker: Registro de nuevo locker (#4)
+- `docs/TDDs/TDD_0005` TDD de la Entidad Locker: Baja de locker (#4)
+- `docs/TDDs/TDD_0006` TDD de la Entidad Locker: Modificación de locker (#4)
+- `docs/TDDs/TDD_0007` TDD de la Entidad Sport: Registro de nuevo deporte (#5)
+- `docs/TDDs/TDD_0008` TDD de la Entidad Sport: Modificación de nuevo deporte (#5)
+- `docs/TDDs/TDD_0009` TDD de la Entidad Sport: Baja de nuevo deporte (#5)
+- `docs/TDDs/TDD_0010` TDD de la Entidad MedicalCertificate: Registro de nuevo certificado (#6)
+- `docs/TDDs/TDD_0011` TDD de la Entidad MedicalCertificate: Actualización de certificado (#6)
+- `docs/TDDs/TDD_0012` TDD de la Entidad MedicalCertificate: Baja de certificado (#6)
+- `docs/TDDs/TDD_0013` TDD de la Entidad Payment: Registro de nuevo payment (#7)
+- `docs/TDDs/TDD_0014` TDD de la Entidad Payment: Baja de payment (#7)
+- `docs/TDDs/TDD_0015` TDD de la Entidad Payment: Modificación de payment (#7)
+- `docs/TDDs/TDD_0016` TDD de la Entidad EquipmentLoan: Registro de nuevo préstamo (#8)
+- `docs/TDDs/TDD_0017` TDD de la Entidad EquipmentLoan: Listado de préstamos (#8)
+- `docs/TDDs/TDD_0018` TDD de la Entidad EquipmentLoan: Modificación de préstamo (#8)
+- `docs/TDDs/TDD_0019` TDD de la Entidad EquipmentLoan: Baja de préstamo (#8)
+- `docs/TDDs/TDD_0020` TDD de la Entidad Discipline: Registro de nueva disciplina (#9)
+- `docs/TDDs/TDD_0021` TDD de la Entidad Discipline: Modificación de disciplina (#9)
+- `docs/TDDs/TDD_0022` TDD de la Entidad Discipline: Baja de disciplina (#9)
 
 ---
 
