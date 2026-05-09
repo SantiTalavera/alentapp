@@ -29,6 +29,7 @@ No se permite pushear directamente a la rama `main`. Todas las contribuciones de
 3.  **Desarrollar**: Escribe tu código siguiendo los estándares del proyecto.
 4.  **Verificar**: Antes de subir tus cambios, **todos los tests deben pasar**. Consulta la [Guía de Testing](./TESTING.md) para más detalles.
     - `npm run test` (Unitarios)
+    - `npm run e2e:fullstack:run` (E2E Full-stack)
 5.  **Commit**: Realiza commits descriptivos siguiendo el formato definido en la sección [Convención de Commits](#-convención-de-commits).
 6.  **Pull Request (PR)**: Sube tu rama y abre un PR hacia `main`. Describe claramente qué cambios introdujiste.
 
