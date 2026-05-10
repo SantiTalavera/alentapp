@@ -77,9 +77,9 @@ Se reutilizan los tipos `EquipmentLoanDTO` y `LoanStatus` definidos en TDD-0016.
 
 Se amplían los componentes creados en TDD-0016 sin crear nuevos archivos de dominio.
 
-- **Domain**: Los métodos `findAll(filters?)` y `findById(id)` ya están declarados en el puerto `EquipmentLoanRepository` definido en TDD-0016. No se agregan reglas de negocio nuevas: un `memberId` inválido produce lista vacía (comportamiento correcto).
+- **Domain**: Los métodos `findAll(filters?)` y `findById(id)` ya están declarados en el puerto `EquipmentLoanRepository` definido en TDD-0016. Se agrega la regla de validación de formato: si se provee `memberId`, debe tener formato UUID válido; de lo contrario se lanza un error de dominio descriptivo.
 
-- **Application**: `GetEquipmentLoansUseCase` recibe los filtros opcionales y delega directamente a `findAll`; no aplica validaciones adicionales. `GetEquipmentLoanByIdUseCase` invoca `findById` y lanza error de dominio "El préstamo no existe" si el resultado es `null`.
+- **Application**: `GetEquipmentLoansUseCase` recibe los filtros opcionales, valida el formato UUID de `memberId` si fue provisto (lanza error descriptivo si es inválido), y delega a `findAll`. `GetEquipmentLoanByIdUseCase` invoca `findById` y lanza error de dominio "El préstamo no existe" si el resultado es `null`.
 
 - **Infrastructure**: En `PostgresEquipmentLoanRepository`, `findAll` aplica siempre `WHERE deleted_at IS NULL`, el filtro `AND member_id = :memberId` condicional y `ORDER BY loan_date DESC`. `findById` aplica `WHERE id = :id AND deleted_at IS NULL` y retorna `null` si no hay resultado activo.
 
