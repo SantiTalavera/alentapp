@@ -28,6 +28,7 @@ Permitir que el administrativo actualice el estado de un préstamo existente, pr
   - `Returned → *` ❌ (préstamo cerrado, no se puede reabrir)
   - `Damaged → *` ❌ (ítem dañado, requiere proceso externo al sistema)
 - La actualización es **parcial**: campos no enviados no se modifican.
+- El body de la petición **no puede estar vacío**: debe contener al menos uno de los campos actualizables (`status` o `due_date`). Un body vacío `{}` es un error de validación.
 - Si solo se envía `due_date` sin `status`, se actualiza solo la fecha de devolución sin cambiar el estado.
 - Si la actualización es exitosa, se retorna el objeto completo del préstamo actualizado con HTTP `200 OK`.
 
@@ -98,7 +99,7 @@ Se amplían los componentes creados en TDD-0016 sin crear nuevos archivos de inf
 | Intento de cambiar estado desde `Damaged`               | Error: no se puede cambiar el estado de un préstamo en estado Damaged      | 422 Unprocessable Entity  |
 | Intento de transición `Loaned → Loaned` (mismo estado)  | El préstamo no cambia; retorna el objeto sin modificaciones                | 200 OK                    |
 | `due_date` con formato no ISO 8601                      | Error: formato de fecha de devolución inválido                             | 400 Bad Request           |
-| Body vacío `{}` (sin campos)                            | El préstamo se retorna sin ninguna modificación                            | 200 OK                    |
+| Body vacío `{}` (sin campos)                            | Error: se requiere al menos un campo a actualizar (`status` o `due_date`) | 400 Bad Request           |
 | Solo se actualiza `due_date` sin cambiar `status`       | El `status` se mantiene; solo cambia `due_date`                           | 200 OK                    |
 | Actualización exitosa `Loaned → Returned`               | `EquipmentLoanDTO` con `status: 'Returned'`                               | 200 OK                    |
 | Fallo inesperado en la base de datos                    | Error interno                                                              | 500 Server Error          |
@@ -114,5 +115,5 @@ Se amplían los componentes creados en TDD-0016 sin crear nuevos archivos de inf
 7. Registrar la ruta `PATCH /api/v1/loans/:id` en `src/app.ts`.
 8. Agregar el método `update` al servicio frontend `loans.ts`.
 9. Conectar los botones de acción ("Marcar devuelto", "Marcar dañado") en la vista `EquipmentLoans.tsx`.
-10. Escribir tests unitarios: actualización exitosa (`Loaned → Returned`, `Loaned → Damaged`), préstamo inexistente, transición desde estado terminal, `due_date` con formato inválido, body vacío.
+10. Escribir tests unitarios: actualización exitosa (`Loaned → Returned`, `Loaned → Damaged`), préstamo inexistente, transición desde estado terminal, `due_date` con formato inválido, body vacío (debe retornar 400).
 11. Escribir tests de integración para el endpoint `PATCH /api/v1/loans/:id`.
