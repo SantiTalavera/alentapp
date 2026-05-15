@@ -3,7 +3,7 @@ import { DisciplineRepository } from '../domain/DisciplineRepository.js';
 import { MemberRepository } from '../domain/MemberRepository.js';
 import { DisciplineValidator } from '../domain/services/DisciplineValidator.js';
 
-export class CreateDisciplineUseCase {
+export class NewDisciplineUseCase {
     constructor(
         private readonly disciplineRepo: DisciplineRepository,
         private readonly memberRepo: MemberRepository,
