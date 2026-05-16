@@ -49,3 +49,10 @@ export type CreateDisciplineRequest = {
   end_date: string;
   is_total_suspension: boolean;
 };
+
+export type UpdateDisciplineRequest = {
+  reason?: string;
+  start_date?: string;
+  end_date?: string;
+  is_total_suspension?: boolean;
+};
