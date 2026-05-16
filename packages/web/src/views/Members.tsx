@@ -12,11 +12,12 @@ import {
   Center,
   Input
 } from "@chakra-ui/react";
-import { LuPlus, LuPencil, LuTrash2, LuRefreshCw, LuBan } from "react-icons/lu";
+import { LuPlus, LuPencil, LuTrash2, LuRefreshCw, LuBan, LuFileText } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { membersService } from "../services/members";
 import { disciplinesService } from "../services/disciplines";
-import type { MemberDTO, CreateMemberRequest, UpdateMemberRequest, MemberCategory, MemberStatus, CreateDisciplineRequest } from "@alentapp/shared";
+import { medicalCertificatesService } from "../services/medicalCertificates";
+import type { MemberDTO, CreateMemberRequest, UpdateMemberRequest, MemberCategory, MemberStatus, CreateDisciplineRequest, CreateMedicalCertificateRequest } from "@alentapp/shared";
 import { 
   DialogRoot, 
   DialogContent, 
@@ -66,6 +67,10 @@ export function MembersView() {
   const [selectedMemberForDiscipline, setSelectedMemberForDiscipline] = useState<MemberDTO | null>(null);
   const [isSubmittingDiscipline, setIsSubmittingDiscipline] = useState(false);
 
+  const [isMedicalCertDialogOpen, setIsMedicalCertDialogOpen] = useState(false);
+  const [selectedMemberForMedicalCert, setSelectedMemberForMedicalCert] = useState<MemberDTO | null>(null);
+  const [isSubmittingMedicalCert, setIsSubmittingMedicalCert] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState<CreateMemberRequest & { status?: MemberStatus }>({
     name: "",
@@ -80,6 +85,13 @@ export function MembersView() {
     start_date: "",
     end_date: "",
     is_total_suspension: false,
+  });
+
+  const [medicalCertFormData, setMedicalCertFormData] = useState<CreateMedicalCertificateRequest>({
+    member_id: "",
+    issue_date: "",
+    expiry_date: "",
+    doctor_license: "",
   });
 
   const fetchMembers = async () => {
@@ -126,6 +138,17 @@ export function MembersView() {
     setIsDisciplineDialogOpen(true);
   };
 
+  const openMedicalCertModal = (member: MemberDTO) => {
+    setSelectedMemberForMedicalCert(member);
+    setMedicalCertFormData({
+      member_id: member.id,
+      issue_date: "",
+      expiry_date: "",
+      doctor_license: "",
+    });
+    setIsMedicalCertDialogOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -167,6 +190,21 @@ export function MembersView() {
       alert(err.message || "Error al registrar la disciplina");
     } finally {
       setIsSubmittingDiscipline(false);
+    }
+  };
+
+  const handleMedicalCertSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingMedicalCert(true);
+    try {
+      await medicalCertificatesService.create(medicalCertFormData);
+      alert("Certificado médico registrado correctamente.");
+      setIsMedicalCertDialogOpen(false);
+      setSelectedMemberForMedicalCert(null);
+    } catch (err: any) {
+      alert(err.message || "Error al registrar el certificado");
+    } finally {
+      setIsSubmittingMedicalCert(false);
     }
   };
 
@@ -374,6 +412,15 @@ export function MembersView() {
                       <IconButton
                         variant="ghost"
                         size="sm"
+                        colorPalette="blue"
+                        aria-label="Registrar certificado médico"
+                        onClick={() => openMedicalCertModal(member)}
+                      >
+                        <LuFileText />
+                      </IconButton>
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
                         colorPalette="orange"
                         aria-label="Registrar disciplina"
                         onClick={() => openDisciplineModal(member)}
@@ -465,6 +512,64 @@ export function MembersView() {
           </DialogActionTrigger>
           <Button type="submit" colorPalette="blue" loading={isSubmittingDiscipline}>
             Registrar Disciplina
+          </Button>
+        </DialogFooter>
+        <DialogCloseTrigger />
+      </form>
+    </DialogContent>
+  </DialogRoot>
+
+  <DialogRoot open={isMedicalCertDialogOpen} onOpenChange={(e) => setIsMedicalCertDialogOpen(e.open)}>
+    <DialogContent>
+      <form onSubmit={handleMedicalCertSubmit}>
+        <DialogHeader>
+          <DialogTitle>
+            Registrar Certificado Médico
+            {selectedMemberForMedicalCert ? ` - ${selectedMemberForMedicalCert.name}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <Box bg="orange.100" p={3} borderRadius="md" mb={4} borderLeftWidth="4px" borderLeftColor="orange.500">
+            <Text fontWeight="bold" color="orange.800" fontSize="sm">
+                ⚠️ Atención
+            </Text>
+            <Text color="orange.800" mt={1} fontSize="sm">
+                Cualquier certificado previo activo quedará automáticamente invalidado.
+            </Text>
+          </Box>
+          <Stack gap="4">
+            <Field label="Fecha de Emisión" required>
+              <Input
+                type="date"
+                value={medicalCertFormData.issue_date}
+                onChange={(e) => setMedicalCertFormData({ ...medicalCertFormData, issue_date: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label="Fecha de Vencimiento" required>
+              <Input
+                type="date"
+                value={medicalCertFormData.expiry_date}
+                onChange={(e) => setMedicalCertFormData({ ...medicalCertFormData, expiry_date: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label="Matrícula del Médico" required>
+              <Input
+                placeholder="Ej: MN 12345"
+                value={medicalCertFormData.doctor_license}
+                onChange={(e) => setMedicalCertFormData({ ...medicalCertFormData, doctor_license: e.target.value })}
+                required
+              />
+            </Field>
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <DialogActionTrigger asChild>
+            <Button variant="outline">Cancelar</Button>
+          </DialogActionTrigger>
+          <Button type="submit" colorPalette="blue" loading={isSubmittingMedicalCert}>
+            Registrar Certificado
           </Button>
         </DialogFooter>
         <DialogCloseTrigger />

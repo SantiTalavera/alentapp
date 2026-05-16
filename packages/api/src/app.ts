@@ -16,6 +16,10 @@ import { PostgresSportRepository } from './infrastructure/PostgresSportRepositor
 import { SportValidator } from './domain/services/SportValidator.js';
 import { NewSportUseCase } from './application/sport/NewSportUseCase.js';
 import { SportController } from './delivery/SportController.js';
+import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
+import { CreateMedicalCertificateUseCase } from './application/medical-certificate/CreateMedicalCertificateUseCase.js';
+import { MedicalCertificateController } from './delivery/MedicalCertificateController.js';
+import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
 
 export function buildApp() {
     const server = Fastify({
@@ -73,12 +77,22 @@ export function buildApp() {
     const newSportUseCase = new NewSportUseCase(sportRepository, sportValidator);
     const sportController = new SportController(newSportUseCase);
 
+    const medicalCertificateRepository = new PostgresMedicalCertificateRepository();
+    const medicalCertificateValidator = new MedicalCertificateValidator();
+    const createMedicalCertificateUseCase = new CreateMedicalCertificateUseCase(
+        medicalCertificateRepository,
+        memberRepo,
+        medicalCertificateValidator
+    );
+    const medicalCertificateController = new MedicalCertificateController(createMedicalCertificateUseCase);
+
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
     server.delete('/api/v1/socios/:id', memberController.delete.bind(memberController));
     server.post('/api/v1/disciplines', disciplineController.create.bind(disciplineController));
     server.post('/api/v1/sports', sportController.create.bind(sportController));
+    server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
 
 
