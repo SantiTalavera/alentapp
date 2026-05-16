@@ -14,7 +14,7 @@ import { DisciplineValidator } from './domain/services/DisciplineValidator.js';
 import { PostgresDisciplineRepository } from './infrastructure/PostgresDisciplineRepository.js';
 import { PostgresSportRepository } from './infrastructure/PostgresSportRepository.js';
 import { SportValidator } from './domain/services/SportValidator.js';
-import { NewSportUseCase } from './application/NewSportUseCase.js';
+import { NewSportUseCase } from './application/sport/NewSportUseCase.js';
 import { SportController } from './delivery/SportController.js';
 
 export function buildApp() {
