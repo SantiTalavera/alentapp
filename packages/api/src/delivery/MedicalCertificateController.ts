@@ -3,6 +3,8 @@ import { CreateMedicalCertificateRequest, UpdateMedicalCertificateRequest } from
 import { CreateMedicalCertificateUseCase } from '../application/medical-certificate/CreateMedicalCertificateUseCase.js';
 import { UpdateMedicalCertificateUseCase } from '../application/medical-certificate/UpdateMedicalCertificateUseCase.js';
 import { DeleteMedicalCertificateUseCase } from '../application/medical-certificate/DeleteMedicalCertificateUseCase.js';
+import { GetMedicalCertificatesByMemberUseCase } from '../application/medical-certificate/GetMedicalCertificatesByMemberUseCase.js';
+import { GetMedicalCertificateByIdUseCase } from '../application/medical-certificate/GetMedicalCertificateByIdUseCase.js';
 
 const BAD_REQUEST_MESSAGES = new Set([
     'El socio es requerido',
@@ -20,7 +22,9 @@ export class MedicalCertificateController {
     constructor(
         private readonly createMedicalCertificateUseCase: CreateMedicalCertificateUseCase,
         private readonly updateMedicalCertificateUseCase: UpdateMedicalCertificateUseCase,
-        private readonly deleteMedicalCertificateUseCase: DeleteMedicalCertificateUseCase
+        private readonly deleteMedicalCertificateUseCase: DeleteMedicalCertificateUseCase,
+        private readonly getMedicalCertificatesByMemberUseCase: GetMedicalCertificatesByMemberUseCase,
+        private readonly getMedicalCertificateByIdUseCase: GetMedicalCertificateByIdUseCase
     ) { }
 
     async create(
@@ -80,6 +84,38 @@ export class MedicalCertificateController {
             const message = error instanceof Error ? error.message : 'Error interno, reintente más tarde';
 
             if (message === 'El certificado médico no existe') {
+                return reply.code(404).send({ error: message });
+            }
+
+            return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async getByMemberId(
+        request: FastifyRequest<{ Params: { memberId: string } }>,
+        reply: FastifyReply
+    ) {
+        try {
+            const { memberId } = request.params;
+            const certificates = await this.getMedicalCertificatesByMemberUseCase.execute(memberId);
+            return reply.code(200).send({ data: certificates });
+        } catch (error) {
+            return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async getById(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply
+    ) {
+        try {
+            const { id } = request.params;
+            const certificate = await this.getMedicalCertificateByIdUseCase.execute(id);
+            return reply.code(200).send({ data: certificate });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error interno, reintente más tarde';
+
+            if (message === 'Certificado no encontrado') {
                 return reply.code(404).send({ error: message });
             }
 
