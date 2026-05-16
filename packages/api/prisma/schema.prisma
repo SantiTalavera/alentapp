@@ -33,7 +33,8 @@ model Member {
     category    MemberCategory
     status      MemberStatus   @default(Activo)
     created_at  DateTime       @default(now())
-    disciplines Discipline[]
+    disciplines         Discipline[]
+    medicalCertificates MedicalCertificate[]
 
     @@map("members") // Para que en la DB la tabla se llame 'members' en minúscula
 }
@@ -62,4 +63,17 @@ model Sport {
     deleted_at                   DateTime?
 
     @@map("sports")
+}
+
+model MedicalCertificate {
+    id             String   @id @default(uuid())
+    issue_date     DateTime
+    expiry_date    DateTime
+    doctor_license String
+    is_validated   Boolean  @default(true)
+    member_id      String
+    member         Member   @relation(fields: [member_id], references: [id], onDelete: Restrict)
+
+    @@unique([member_id, is_validated], name: "unique_active_cert")
+    @@map("medical_certificates")
 }

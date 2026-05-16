@@ -77,3 +77,22 @@ export interface CreateSportRequest {
   additional_price: number;
   requires_medical_certificate: boolean;
 }
+
+// ==========================================
+// MedicalCertificate
+// ==========================================
+export interface MedicalCertificateDTO {
+  id: string; // UUID
+  issue_date: string; // ISO Date String
+  expiry_date: string; // ISO Date String
+  doctor_license: string;
+  is_validated: boolean;
+  member_id: string; // UUID
+}
+
+export interface CreateMedicalCertificateRequest {
+  member_id: string; // UUID
+  issue_date: string; // ISO Date String
+  expiry_date: string; // ISO Date String
+  doctor_license: string;
+}
