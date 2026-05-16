@@ -12,12 +12,13 @@ import {
   Center,
   Input
 } from "@chakra-ui/react";
-import { LuPlus, LuPencil, LuTrash2, LuRefreshCw, LuBan, LuFileText } from "react-icons/lu";
+import { LuPlus, LuPencil, LuTrash2, LuRefreshCw, LuBan, LuFileText, LuDollarSign } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { membersService } from "../services/members";
 import { disciplinesService } from "../services/disciplines";
 import { medicalCertificatesService } from "../services/medicalCertificates";
-import type { MemberDTO, CreateMemberRequest, UpdateMemberRequest, MemberCategory, MemberStatus, CreateDisciplineRequest, CreateMedicalCertificateRequest } from "@alentapp/shared";
+import { paymentsService } from "../services/payments";
+import type { MemberDTO, CreateMemberRequest, UpdateMemberRequest, MemberCategory, MemberStatus, CreateDisciplineRequest, CreateMedicalCertificateRequest, CreatePaymentRequest } from "@alentapp/shared";
 import { 
   DialogRoot, 
   DialogContent, 
@@ -72,6 +73,10 @@ export function MembersView() {
   const [isSubmittingMedicalCert, setIsSubmittingMedicalCert] = useState(false);
   const [editingMedicalCertId, setEditingMedicalCertId] = useState<string | null>(null);
 
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [selectedMemberForPayment, setSelectedMemberForPayment] = useState<MemberDTO | null>(null);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState<CreateMemberRequest & { status?: MemberStatus }>({
     name: "",
@@ -93,6 +98,14 @@ export function MembersView() {
     issue_date: "",
     expiry_date: "",
     doctor_license: "",
+  });
+
+  const [paymentFormData, setPaymentFormData] = useState<CreatePaymentRequest>({
+    member_id: "",
+    amount: 0,
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    due_date: "",
   });
 
   const fetchMembers = async () => {
@@ -149,6 +162,18 @@ export function MembersView() {
       doctor_license: "",
     });
     setIsMedicalCertDialogOpen(true);
+  };
+
+  const openPaymentModal = (member: MemberDTO) => {
+    setSelectedMemberForPayment(member);
+    setPaymentFormData({
+      member_id: member.id,
+      amount: 0,
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      due_date: "",
+    });
+    setIsPaymentDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -228,6 +253,21 @@ export function MembersView() {
       } catch (err: any) {
         alert(err.message || "Error al eliminar el certificado médico");
       }
+    }
+  };
+
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingPayment(true);
+    try {
+      await paymentsService.create(paymentFormData);
+      alert("Pago registrado correctamente.");
+      setIsPaymentDialogOpen(false);
+      setSelectedMemberForPayment(null);
+    } catch (err: any) {
+      alert(err.message || "Error al registrar el pago");
+    } finally {
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -444,6 +484,15 @@ export function MembersView() {
                       <IconButton
                         variant="ghost"
                         size="sm"
+                        colorPalette="green"
+                        aria-label="Registrar pago"
+                        onClick={() => openPaymentModal(member)}
+                      >
+                        <LuDollarSign />
+                      </IconButton>
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
                         colorPalette="orange"
                         aria-label="Registrar disciplina"
                         onClick={() => openDisciplineModal(member)}
@@ -595,6 +644,73 @@ export function MembersView() {
           </DialogActionTrigger>
           <Button type="submit" colorPalette="blue" loading={isSubmittingMedicalCert}>
             {editingMedicalCertId ? "Actualizar Certificado" : "Registrar Certificado"}
+          </Button>
+        </DialogFooter>
+        <DialogCloseTrigger />
+      </form>
+    </DialogContent>
+  </DialogRoot>
+
+  <DialogRoot open={isPaymentDialogOpen} onOpenChange={(e) => setIsPaymentDialogOpen(e.open)}>
+    <DialogContent>
+      <form onSubmit={handlePaymentSubmit}>
+        <DialogHeader>
+          <DialogTitle>
+            Registrar Pago
+            {selectedMemberForPayment ? ` - ${selectedMemberForPayment.name}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <Stack gap="4">
+            <Field label="Monto" required>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="Ej. 1500.50"
+                value={paymentFormData.amount || ""}
+                onChange={(e) => setPaymentFormData({ ...paymentFormData, amount: parseFloat(e.target.value) })}
+                required
+              />
+            </Field>
+            <Field label="Mes" required>
+              <Input
+                type="number"
+                min="1"
+                max="12"
+                placeholder="Ej. 5"
+                value={paymentFormData.month || ""}
+                onChange={(e) => setPaymentFormData({ ...paymentFormData, month: parseInt(e.target.value, 10) })}
+                required
+              />
+            </Field>
+            <Field label="Año" required>
+              <Input
+                type="number"
+                min="2000"
+                max="2100"
+                placeholder="Ej. 2026"
+                value={paymentFormData.year || ""}
+                onChange={(e) => setPaymentFormData({ ...paymentFormData, year: parseInt(e.target.value, 10) })}
+                required
+              />
+            </Field>
+            <Field label="Fecha de Vencimiento" required>
+              <Input
+                type="date"
+                value={paymentFormData.due_date}
+                onChange={(e) => setPaymentFormData({ ...paymentFormData, due_date: e.target.value })}
+                required
+              />
+            </Field>
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <DialogActionTrigger asChild>
+            <Button variant="outline">Cancelar</Button>
+          </DialogActionTrigger>
+          <Button type="submit" colorPalette="blue" loading={isSubmittingPayment}>
+            Registrar Pago
           </Button>
         </DialogFooter>
         <DialogCloseTrigger />

@@ -27,6 +27,9 @@ import { GetMedicalCertificatesByMemberUseCase } from './application/medical-cer
 import { GetMedicalCertificateByIdUseCase } from './application/medical-certificate/GetMedicalCertificateByIdUseCase.js';
 import { MedicalCertificateController } from './delivery/MedicalCertificateController.js';
 import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
+import { PostgresPaymentRepository } from './infrastructure/PostgresPaymentRepository.js';
+import { CreatePaymentUseCase } from './application/payment/CreatePaymentUseCase.js';
+import { PaymentController } from './delivery/PaymentController.js';
 
 export function buildApp() {
     const server = Fastify({
@@ -120,6 +123,13 @@ export function buildApp() {
         getMedicalCertificateByIdUseCase
     );
 
+    const paymentRepository = new PostgresPaymentRepository();
+    const createPaymentUseCase = new CreatePaymentUseCase(
+        paymentRepository,
+        memberRepo
+    );
+    const paymentController = new PaymentController(createPaymentUseCase);
+
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
@@ -135,6 +145,7 @@ export function buildApp() {
     server.delete('/api/v1/medical-certificates/:id', medicalCertificateController.delete.bind(medicalCertificateController));
     server.get('/api/v1/members/:memberId/medical-certificates', medicalCertificateController.getByMemberId.bind(medicalCertificateController));
     server.get('/api/v1/medical-certificates/:id', medicalCertificateController.getById.bind(medicalCertificateController));
+    server.post('/api/v1/payments', paymentController.create.bind(paymentController));
 
 
 

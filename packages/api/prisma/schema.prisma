@@ -35,6 +35,7 @@ model Member {
     created_at  DateTime       @default(now())
     disciplines         Discipline[]
     medicalCertificates MedicalCertificate[]
+    payments            Payment[]
 
     @@map("members") // Para que en la DB la tabla se llame 'members' en minúscula
 }
@@ -76,4 +77,19 @@ model MedicalCertificate {
 
     @@unique([member_id, is_validated], name: "unique_active_cert")
     @@map("medical_certificates")
+}
+
+model Payment {
+    id           String    @id @default(uuid())
+    amount       Float
+    month        Int
+    year         Int
+    due_date     DateTime
+    status       String    @default("Pending")
+    payment_date DateTime?
+    member_id    String
+    member       Member    @relation(fields: [member_id], references: [id], onDelete: Restrict)
+
+    @@unique([member_id, month, year])
+    @@map("payments")
 }
