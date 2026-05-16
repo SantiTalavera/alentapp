@@ -1,7 +1,7 @@
 import { CreateDisciplineRequest, DisciplineDTO } from '@alentapp/shared';
-import { DisciplineRepository } from '../domain/DisciplineRepository.js';
-import { MemberRepository } from '../domain/MemberRepository.js';
-import { DisciplineValidator } from '../domain/services/DisciplineValidator.js';
+import { DisciplineRepository } from '../../domain/DisciplineRepository.js';
+import { MemberRepository } from '../../domain/MemberRepository.js';
+import { DisciplineValidator } from '../../domain/services/DisciplineValidator.js';
 
 export class NewDisciplineUseCase {
     constructor(
