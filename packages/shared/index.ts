@@ -110,3 +110,44 @@ export interface UpdateMedicalCertificateRequest {
   expiry_date?: string; // ISO Date String
   doctor_license?: string;
 }
+
+// ==========================================
+// Payment
+// ==========================================
+export interface PaymentDTO {
+  id: string; // UUID
+  member_id: string; // UUID
+  amount: number;
+  month: number;
+  year: number;
+  due_date: string; // ISO Date String
+  status: 'Pending' | 'Paid' | 'Canceled';
+  payment_date: string | null; // ISO Date String
+}
+
+export interface CreatePaymentRequest {
+  member_id: string; // UUID
+  amount: number;
+  month: number;
+  year: number;
+  due_date: string; // ISO Date String
+}
+  expiry_date: string; // ISO Date String
+  doctor_license: string;
+  is_validated: boolean;
+  member_id: string; // UUID
+}
+
+export interface CreateMedicalCertificateRequest {
+  member_id: string; // UUID
+  issue_date: string; // ISO Date String
+  expiry_date: string; // ISO Date String
+  doctor_license: string;
+}
+
+export interface UpdateMedicalCertificateRequest {
+  member_id?: never;
+  issue_date?: string; // ISO Date String
+  expiry_date?: string; // ISO Date String
+  doctor_license?: string;
+}
