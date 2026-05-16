@@ -18,6 +18,7 @@ import { NewSportUseCase } from './application/sport/NewSportUseCase.js';
 import { GetSportsUseCase } from './application/sport/GetSportsUseCase.js';
 import { GetSportByIdUseCase } from './application/sport/GetSportByIdUseCase.js';
 import { UpdateSportUseCase } from './application/sport/UpdateSportUseCase.js';
+import { DeleteSportUseCase } from './application/sport/DeleteSportUseCase.js';
 import { SportController } from './delivery/SportController.js';
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
 import { CreateMedicalCertificateUseCase } from './application/medical-certificate/CreateMedicalCertificateUseCase.js';
@@ -85,11 +86,13 @@ export function buildApp() {
     const getSportsUseCase = new GetSportsUseCase(sportRepository);
     const getSportByIdUseCase = new GetSportByIdUseCase(sportRepository);
     const updateSportUseCase = new UpdateSportUseCase(sportRepository, sportValidator);
+    const deleteSportUseCase = new DeleteSportUseCase(sportRepository);
     const sportController = new SportController(
         newSportUseCase,
         getSportsUseCase,
         getSportByIdUseCase,
         updateSportUseCase,
+        deleteSportUseCase,
     );
 
     const medicalCertificateRepository = new PostgresMedicalCertificateRepository();
@@ -128,6 +131,7 @@ export function buildApp() {
     server.get('/api/v1/sports', sportController.getAll.bind(sportController));
     server.get('/api/v1/sports/:id', sportController.getById.bind(sportController));
     server.patch('/api/v1/sports/:id', sportController.update.bind(sportController));
+    server.delete('/api/v1/sports/:id', sportController.delete.bind(sportController));
     server.post('/api/v1/sports', sportController.create.bind(sportController));
     server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
