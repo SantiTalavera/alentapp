@@ -1,4 +1,5 @@
 ---
+id: 0014
 autor: Justina Smith
 fecha: 2026-05-02
 titulo: Baja lógica de Payment (Cancelación)
@@ -49,14 +50,16 @@ Request: sin body.
 Response `200 OK`:
 ```ts
 {
-  id: string;
-  member_id: string;
-  amount: number;
-  month: number;
-  year: number;
-  due_date: string;
-  status: "Canceled";     // siempre Canceled en una respuesta exitosa
-  payment_date: null;
+  data: {
+    id: string;
+    member_id: string;
+    amount: number;
+    month: number;
+    year: number;
+    due_date: string;
+    status: "Canceled";     // siempre Canceled en una respuesta exitosa
+    payment_date: null;
+  }
 }
 ```
 
