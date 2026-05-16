@@ -9,6 +9,7 @@ import { DeleteMemberUseCase } from './application/DeleteMemberUseCase.js';
 import { MemberController } from './delivery/MemberController.js';
 import { DisciplineController } from './delivery/DisciplineController.js';
 import { NewDisciplineUseCase } from './application/discipline/NewDisciplineUseCase.js';
+import { UpdateDisciplineUseCase } from './application/discipline/UpdateDisciplineUseCase.js';
 import { DisciplineValidator } from './domain/services/DisciplineValidator.js';
 import { PostgresDisciplineRepository } from './infrastructure/PostgresDisciplineRepository.js';
 
@@ -28,7 +29,7 @@ export function buildApp() {
 
     server.register(cors, {
         origin: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
     });
@@ -54,8 +55,14 @@ export function buildApp() {
         disciplineRepository,
         memberRepo,
         disciplineValidator
-);
-const disciplineController = new DisciplineController(newDisciplineUseCase);
+    );
+    const updateDisciplineUseCase = new UpdateDisciplineUseCase(
+        disciplineRepository,
+        memberRepo,
+        disciplineValidator
+    );
+
+    const disciplineController = new DisciplineController(newDisciplineUseCase, updateDisciplineUseCase);
 
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
@@ -63,6 +70,8 @@ const disciplineController = new DisciplineController(newDisciplineUseCase);
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
     server.delete('/api/v1/socios/:id', memberController.delete.bind(memberController));
     server.post('/api/v1/disciplines', disciplineController.create.bind(disciplineController));
+    server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
+
 
 
     server.get('/', async (req, rep) => {
