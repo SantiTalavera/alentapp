@@ -1,4 +1,6 @@
 import { CreateDisciplineRequest, MemberStatus } from '@alentapp/shared';
+import { CreateDisciplineRequest, MemberStatus, UpdateDisciplineRequest } from '@alentapp/shared';
+
 
 export class DisciplineValidator {
     validateCreateRequest(data: CreateDisciplineRequest): void {
@@ -60,4 +62,43 @@ export class DisciplineValidator {
 
         return start <= referenceDate && end >= referenceDate;
     }
+
+    validateUpdateRequest(data: UpdateDisciplineRequest & Record<string, unknown>): void {
+        if (!data || Object.keys(data).length === 0) {
+            throw new Error('Se debe enviar al menos un campo para actualizar');
+        }
+
+        if ('member_id' in data) {
+            throw new Error('El socio de la disciplina no puede modificarse');
+        }
+
+        const allowedFields = ['reason', 'start_date', 'end_date', 'is_total_suspension'];
+
+        const hasAllowedField = Object.keys(data).some((key) => allowedFields.includes(key));
+
+        if (!hasAllowedField) {
+            throw new Error('Se debe enviar al menos un campo para actualizar');
+        }
+
+        if (data.reason !== undefined) {
+            this.validateReason(data.reason);
+        }
+
+        if (data.start_date !== undefined) {
+            this.validateDateRequired(data.start_date, 'La fecha de inicio es requerida');
+        }
+
+        if (data.end_date !== undefined) {
+            this.validateDateRequired(data.end_date, 'La fecha de fin es requerida');
+        }
+
+        if (data.is_total_suspension !== undefined) {
+            this.validateIsTotalSuspension(data.is_total_suspension);
+        }
+    }
+
+    validateResultingDateRange(startDate: string, endDate: string): void {
+        this.validateDateRange(startDate, endDate);
+    }
+    
 }
