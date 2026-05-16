@@ -19,6 +19,7 @@ import { SportController } from './delivery/SportController.js';
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
 import { CreateMedicalCertificateUseCase } from './application/medical-certificate/CreateMedicalCertificateUseCase.js';
 import { UpdateMedicalCertificateUseCase } from './application/medical-certificate/UpdateMedicalCertificateUseCase.js';
+import { DeleteMedicalCertificateUseCase } from './application/medical-certificate/DeleteMedicalCertificateUseCase.js';
 import { MedicalCertificateController } from './delivery/MedicalCertificateController.js';
 import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
 
@@ -89,9 +90,13 @@ export function buildApp() {
         medicalCertificateRepository,
         medicalCertificateValidator
     );
+    const deleteMedicalCertificateUseCase = new DeleteMedicalCertificateUseCase(
+        medicalCertificateRepository
+    );
     const medicalCertificateController = new MedicalCertificateController(
         createMedicalCertificateUseCase,
-        updateMedicalCertificateUseCase
+        updateMedicalCertificateUseCase,
+        deleteMedicalCertificateUseCase
     );
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
@@ -103,6 +108,7 @@ export function buildApp() {
     server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
     server.patch('/api/v1/medical-certificates/:id', medicalCertificateController.update.bind(medicalCertificateController));
+    server.delete('/api/v1/medical-certificates/:id', medicalCertificateController.delete.bind(medicalCertificateController));
 
 
 
