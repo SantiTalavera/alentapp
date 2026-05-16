@@ -1,4 +1,5 @@
 ---
+id: 0015
 autor: Justina Smith
 fecha: 2026-05-02
 titulo: Modificación de Payment
@@ -65,14 +66,16 @@ Request:
 Response `200 OK`:
 ```ts
 {
-  id: string;
-  member_id: string;
-  amount: number;
-  month: number;
-  year: number;
-  due_date: string;
-  status: "Pending" | "Paid" | "Canceled";
-  payment_date: string | null;
+  data: {
+    id: string;
+    member_id: string;
+    amount: number;
+    month: number;
+    year: number;
+    due_date: string;
+    status: "Pending" | "Paid" | "Canceled";
+    payment_date: string | null;
+  }
 }
 ```
 
@@ -93,7 +96,8 @@ Response `200 OK`:
 | Modificar `amount` de un pago en estado `Paid`      | Error: el pago no puede modificarse en su estado actual    | 422 Unprocessable Entity  |
 | Transición inválida (`Paid` → `Canceled`)           | Error: transición de estado no permitida                   | 422 Unprocessable Entity  |
 | `amount` es cero o negativo                         | Error: debe ser mayor a cero                               | 400 Bad Request           |
-| Cliente envía `payment_date` en el body             | El campo es ignorado; `payment_date` la asigna el sistema  | 200 OK                    |
+| Cliente envía `payment_date` en el body             | Error: no se acepta payment_date en el request             | 400 Bad Request           |
+| Cliente envía `member_id` en el body                | Error: el campo member_id es inmutable                     | 400 Bad Request           |
 | Fallo inesperado en la base de datos                | Error interno                                              | 500 Server Error          |
 
 ## Plan de Implementación
