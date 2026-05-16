@@ -96,3 +96,10 @@ export interface CreateMedicalCertificateRequest {
   expiry_date: string; // ISO Date String
   doctor_license: string;
 }
+
+export interface UpdateMedicalCertificateRequest {
+  member_id?: never;
+  issue_date?: string; // ISO Date String
+  expiry_date?: string; // ISO Date String
+  doctor_license?: string;
+}

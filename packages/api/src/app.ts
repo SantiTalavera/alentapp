@@ -18,6 +18,10 @@ import { NewSportUseCase } from './application/sport/NewSportUseCase.js';
 import { SportController } from './delivery/SportController.js';
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
 import { CreateMedicalCertificateUseCase } from './application/medical-certificate/CreateMedicalCertificateUseCase.js';
+import { UpdateMedicalCertificateUseCase } from './application/medical-certificate/UpdateMedicalCertificateUseCase.js';
+import { DeleteMedicalCertificateUseCase } from './application/medical-certificate/DeleteMedicalCertificateUseCase.js';
+import { GetMedicalCertificatesByMemberUseCase } from './application/medical-certificate/GetMedicalCertificatesByMemberUseCase.js';
+import { GetMedicalCertificateByIdUseCase } from './application/medical-certificate/GetMedicalCertificateByIdUseCase.js';
 import { MedicalCertificateController } from './delivery/MedicalCertificateController.js';
 import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
 
@@ -84,7 +88,26 @@ export function buildApp() {
         memberRepo,
         medicalCertificateValidator
     );
-    const medicalCertificateController = new MedicalCertificateController(createMedicalCertificateUseCase);
+    const updateMedicalCertificateUseCase = new UpdateMedicalCertificateUseCase(
+        medicalCertificateRepository,
+        medicalCertificateValidator
+    );
+    const deleteMedicalCertificateUseCase = new DeleteMedicalCertificateUseCase(
+        medicalCertificateRepository
+    );
+    const getMedicalCertificatesByMemberUseCase = new GetMedicalCertificatesByMemberUseCase(
+        medicalCertificateRepository
+    );
+    const getMedicalCertificateByIdUseCase = new GetMedicalCertificateByIdUseCase(
+        medicalCertificateRepository
+    );
+    const medicalCertificateController = new MedicalCertificateController(
+        createMedicalCertificateUseCase,
+        updateMedicalCertificateUseCase,
+        deleteMedicalCertificateUseCase,
+        getMedicalCertificatesByMemberUseCase,
+        getMedicalCertificateByIdUseCase
+    );
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
@@ -94,6 +117,10 @@ export function buildApp() {
     server.post('/api/v1/sports', sportController.create.bind(sportController));
     server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
+    server.patch('/api/v1/medical-certificates/:id', medicalCertificateController.update.bind(medicalCertificateController));
+    server.delete('/api/v1/medical-certificates/:id', medicalCertificateController.delete.bind(medicalCertificateController));
+    server.get('/api/v1/members/:memberId/medical-certificates', medicalCertificateController.getByMemberId.bind(medicalCertificateController));
+    server.get('/api/v1/medical-certificates/:id', medicalCertificateController.getById.bind(medicalCertificateController));
 
 
 
