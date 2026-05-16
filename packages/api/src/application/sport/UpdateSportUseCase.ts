@@ -31,19 +31,9 @@ export class UpdateSportUseCase {
 
         this.sportValidator.validateUpdateRequest(data);
 
-        const record = data as Record<string, unknown>;
-        const updateData: UpdateSportRequest = {};
-        if ('description' in record) {
-            updateData.description = (record.description as string).trim();
-        }
-        if ('max_capacity' in record) {
-            updateData.max_capacity = record.max_capacity as number;
-        }
-        if ('additional_price' in record) {
-            updateData.additional_price = record.additional_price as number;
-        }
-        if ('requires_medical_certificate' in record) {
-            updateData.requires_medical_certificate = record.requires_medical_certificate as boolean;
+        const updateData: UpdateSportRequest = { ...data };
+        if (updateData.description !== undefined) {
+            updateData.description = updateData.description.trim();
         }
 
         return this.sportRepository.update(trimmedId, updateData);
