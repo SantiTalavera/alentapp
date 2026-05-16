@@ -12,10 +12,11 @@ import {
   Center,
   Input
 } from "@chakra-ui/react";
-import { LuPlus, LuPencil, LuTrash2, LuRefreshCw } from "react-icons/lu";
+import { LuPlus, LuPencil, LuTrash2, LuRefreshCw, LuBan } from "react-icons/lu";
 import { useEffect, useState } from "react";
 import { membersService } from "../services/members";
-import type { MemberDTO, CreateMemberRequest, UpdateMemberRequest, MemberCategory, MemberStatus } from "@alentapp/shared";
+import { disciplinesService } from "../services/disciplines";
+import type { MemberDTO, CreateMemberRequest, UpdateMemberRequest, MemberCategory, MemberStatus, CreateDisciplineRequest } from "@alentapp/shared";
 import { 
   DialogRoot, 
   DialogContent, 
@@ -61,6 +62,9 @@ export function MembersView() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [isDisciplineDialogOpen, setIsDisciplineDialogOpen] = useState(false);
+  const [selectedMemberForDiscipline, setSelectedMemberForDiscipline] = useState<MemberDTO | null>(null);
+  const [isSubmittingDiscipline, setIsSubmittingDiscipline] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<CreateMemberRequest & { status?: MemberStatus }>({
@@ -69,6 +73,13 @@ export function MembersView() {
     email: "",
     birthdate: "",
     category: "Pleno",
+  });
+  const [disciplineFormData, setDisciplineFormData] = useState<CreateDisciplineRequest>({
+    member_id: "",
+    reason: "",
+    start_date: "",
+    end_date: "",
+    is_total_suspension: false,
   });
 
   const fetchMembers = async () => {
@@ -103,6 +114,18 @@ export function MembersView() {
     setIsDialogOpen(true);
   };
 
+  const openDisciplineModal = (member: MemberDTO) => {
+    setSelectedMemberForDiscipline(member);
+    setDisciplineFormData({
+      member_id: member.id,
+      reason: "",
+      start_date: "",
+      end_date: "",
+      is_total_suspension: false,
+    });
+    setIsDisciplineDialogOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -132,11 +155,27 @@ export function MembersView() {
     }
   };
 
+  const handleDisciplineSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingDiscipline(true);
+    try {
+      await disciplinesService.create(disciplineFormData);
+      setIsDisciplineDialogOpen(false);
+      setSelectedMemberForDiscipline(null);
+      fetchMembers();
+    } catch (err: any) {
+      alert(err.message || "Error al registrar la disciplina");
+    } finally {
+      setIsSubmittingDiscipline(false);
+    }
+  };
+
   useEffect(() => {
     fetchMembers();
   }, []);
 
   return (
+  <>
     <DialogRoot open={isDialogOpen} onOpenChange={(e) => setIsDialogOpen(e.open)}>
       <Stack gap="8">
         <Flex justify="space-between" align="center">
@@ -332,6 +371,15 @@ export function MembersView() {
                   </Table.Cell>
                   <Table.Cell textAlign="end">
                     <HStack gap="2" justify="flex-end">
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        colorPalette="orange"
+                        aria-label="Registrar disciplina"
+                        onClick={() => openDisciplineModal(member)}
+                      >
+                        <LuBan />
+                      </IconButton>
                       <IconButton 
                         variant="ghost" 
                         size="sm" 
@@ -359,5 +407,70 @@ export function MembersView() {
       </Box>
     </Stack>
   </DialogRoot>
+  <DialogRoot open={isDisciplineDialogOpen} onOpenChange={(e) => setIsDisciplineDialogOpen(e.open)}>
+    <DialogContent>
+      <form onSubmit={handleDisciplineSubmit}>
+        <DialogHeader>
+          <DialogTitle>
+            Registrar Disciplina
+            {selectedMemberForDiscipline ? ` - ${selectedMemberForDiscipline.name}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <Stack gap="4">
+            <Field label="Motivo" required>
+              <Input
+                placeholder="Ej. Incumplimiento del reglamento"
+                value={disciplineFormData.reason}
+                onChange={(e) => setDisciplineFormData({ ...disciplineFormData, reason: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label="Fecha de Inicio" required>
+              <Input
+                type="datetime-local"
+                value={disciplineFormData.start_date}
+                onChange={(e) => setDisciplineFormData({ ...disciplineFormData, start_date: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label="Fecha de Fin" required>
+              <Input
+                type="datetime-local"
+                value={disciplineFormData.end_date}
+                onChange={(e) => setDisciplineFormData({ ...disciplineFormData, end_date: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label="Suspensión total">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={disciplineFormData.is_total_suspension}
+                  onChange={(e) =>
+                    setDisciplineFormData({
+                      ...disciplineFormData,
+                      is_total_suspension: e.target.checked,
+                    })
+                  }
+                />{" "}
+                Suspende totalmente al socio mientras la disciplina esté activa
+              </label>
+            </Field>
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <DialogActionTrigger asChild>
+            <Button variant="outline">Cancelar</Button>
+          </DialogActionTrigger>
+          <Button type="submit" colorPalette="blue" loading={isSubmittingDiscipline}>
+            Registrar Disciplina
+          </Button>
+        </DialogFooter>
+        <DialogCloseTrigger />
+      </form>
+    </DialogContent>
+  </DialogRoot>
+  </>
 );
 }

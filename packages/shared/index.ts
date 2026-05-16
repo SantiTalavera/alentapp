@@ -31,3 +31,21 @@ export interface UpdateMemberRequest {
   category?: MemberCategory;
   status?: MemberStatus;
 }
+
+export type DisciplineDTO = {
+  id: string;
+  member_id: string;
+  reason: string;
+  start_date: string;
+  end_date: string;
+  is_total_suspension: boolean;
+  previous_member_status: Exclude<MemberStatus, 'Suspendido'> | null;
+};
+
+export type CreateDisciplineRequest = {
+  member_id: string;
+  reason: string;
+  start_date: string;
+  end_date: string;
+  is_total_suspension: boolean;
+};
