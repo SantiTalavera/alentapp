@@ -10,6 +10,9 @@ const BAD_REQUEST_MESSAGES = new Set([
     'La matrícula del médico es requerida',
     'Las fechas proporcionadas no son válidas',
     'La fecha de vencimiento debe ser posterior a la fecha de emisión',
+    'La fecha de vencimiento debe ser posterior a la de emisión',
+    'Se debe enviar al menos un campo para actualizar',
+    'El socio titular del certificado no puede modificarse',
 ]);
 
 export class MedicalCertificateController {
@@ -32,15 +35,7 @@ export class MedicalCertificateController {
                 return reply.code(404).send({ error: message });
             }
 
-            if (
-                message === 'El socio es requerido' ||
-                message === 'La fecha de emisión es requerida' ||
-                message === 'La fecha de vencimiento es requerida' ||
-                message === 'La matrícula del médico es requerida' ||
-                message === 'Las fechas proporcionadas no son válidas' ||
-                message === 'La fecha de vencimiento debe ser posterior a la fecha de emisión' ||
-                message === 'La fecha de vencimiento debe ser posterior a la de emisión'
-            ) {
+            if (BAD_REQUEST_MESSAGES.has(message)) {
                 return reply.code(400).send({ error: message });
             }
 
@@ -63,16 +58,7 @@ export class MedicalCertificateController {
                 return reply.code(404).send({ error: message });
             }
 
-            if (
-                message === 'Se debe enviar al menos un campo para actualizar' ||
-                message === 'El socio titular del certificado no puede modificarse' ||
-                message === 'La fecha de emisión es requerida' ||
-                message === 'La fecha de vencimiento es requerida' ||
-                message === 'La matrícula del médico es requerida' ||
-                message === 'Las fechas proporcionadas no son válidas' ||
-                message === 'La fecha de vencimiento debe ser posterior a la fecha de emisión' ||
-                message === 'La fecha de vencimiento debe ser posterior a la de emisión'
-            ) {
+            if (BAD_REQUEST_MESSAGES.has(message)) {
                 return reply.code(400).send({ error: message });
             }
 
