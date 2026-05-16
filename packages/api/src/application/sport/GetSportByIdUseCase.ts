@@ -17,7 +17,7 @@ export class GetSportByIdUseCase {
         }
 
         const sport = await this.sportRepository.findById(id.trim());
-        if (!sport) {
+        if (!sport || sport.deleted_at !== null) {
             throw new Error('Deporte no encontrado');
         }
 
