@@ -78,6 +78,13 @@ export interface CreateSportRequest {
   requires_medical_certificate: boolean;
 }
 
+export interface UpdateSportRequest {
+  description?: string;
+  max_capacity?: number;
+  additional_price?: number;
+  requires_medical_certificate?: boolean;
+}
+
 // ==========================================
 // MedicalCertificate
 // ==========================================
@@ -124,4 +131,23 @@ export interface CreatePaymentRequest {
   month: number;
   year: number;
   due_date: string; // ISO Date String
+}
+  expiry_date: string; // ISO Date String
+  doctor_license: string;
+  is_validated: boolean;
+  member_id: string; // UUID
+}
+
+export interface CreateMedicalCertificateRequest {
+  member_id: string; // UUID
+  issue_date: string; // ISO Date String
+  expiry_date: string; // ISO Date String
+  doctor_license: string;
+}
+
+export interface UpdateMedicalCertificateRequest {
+  member_id?: never;
+  issue_date?: string; // ISO Date String
+  expiry_date?: string; // ISO Date String
+  doctor_license?: string;
 }

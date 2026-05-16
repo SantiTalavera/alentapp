@@ -15,6 +15,9 @@ import { PostgresDisciplineRepository } from './infrastructure/PostgresDisciplin
 import { PostgresSportRepository } from './infrastructure/PostgresSportRepository.js';
 import { SportValidator } from './domain/services/SportValidator.js';
 import { NewSportUseCase } from './application/sport/NewSportUseCase.js';
+import { GetSportsUseCase } from './application/sport/GetSportsUseCase.js';
+import { GetSportByIdUseCase } from './application/sport/GetSportByIdUseCase.js';
+import { UpdateSportUseCase } from './application/sport/UpdateSportUseCase.js';
 import { SportController } from './delivery/SportController.js';
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
 import { CreateMedicalCertificateUseCase } from './application/medical-certificate/CreateMedicalCertificateUseCase.js';
@@ -82,7 +85,15 @@ export function buildApp() {
     const sportRepository = new PostgresSportRepository();
     const sportValidator = new SportValidator();
     const newSportUseCase = new NewSportUseCase(sportRepository, sportValidator);
-    const sportController = new SportController(newSportUseCase);
+    const getSportsUseCase = new GetSportsUseCase(sportRepository);
+    const getSportByIdUseCase = new GetSportByIdUseCase(sportRepository);
+    const updateSportUseCase = new UpdateSportUseCase(sportRepository, sportValidator);
+    const sportController = new SportController(
+        newSportUseCase,
+        getSportsUseCase,
+        getSportByIdUseCase,
+        updateSportUseCase,
+    );
 
     const medicalCertificateRepository = new PostgresMedicalCertificateRepository();
     const medicalCertificateValidator = new MedicalCertificateValidator();
@@ -124,6 +135,9 @@ export function buildApp() {
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
     server.delete('/api/v1/socios/:id', memberController.delete.bind(memberController));
     server.post('/api/v1/disciplines', disciplineController.create.bind(disciplineController));
+    server.get('/api/v1/sports', sportController.getAll.bind(sportController));
+    server.get('/api/v1/sports/:id', sportController.getById.bind(sportController));
+    server.patch('/api/v1/sports/:id', sportController.update.bind(sportController));
     server.post('/api/v1/sports', sportController.create.bind(sportController));
     server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
