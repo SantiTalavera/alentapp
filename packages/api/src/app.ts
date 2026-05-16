@@ -12,7 +12,10 @@ import { NewDisciplineUseCase } from './application/discipline/NewDisciplineUseC
 import { UpdateDisciplineUseCase } from './application/discipline/UpdateDisciplineUseCase.js';
 import { DisciplineValidator } from './domain/services/DisciplineValidator.js';
 import { PostgresDisciplineRepository } from './infrastructure/PostgresDisciplineRepository.js';
-
+import { PostgresSportRepository } from './infrastructure/PostgresSportRepository.js';
+import { SportValidator } from './domain/services/SportValidator.js';
+import { NewSportUseCase } from './application/sport/NewSportUseCase.js';
+import { SportController } from './delivery/SportController.js';
 
 export function buildApp() {
     const server = Fastify({
@@ -65,11 +68,17 @@ export function buildApp() {
     const disciplineController = new DisciplineController(newDisciplineUseCase, updateDisciplineUseCase);
 
 
+    const sportRepository = new PostgresSportRepository();
+    const sportValidator = new SportValidator();
+    const newSportUseCase = new NewSportUseCase(sportRepository, sportValidator);
+    const sportController = new SportController(newSportUseCase);
+
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
     server.delete('/api/v1/socios/:id', memberController.delete.bind(memberController));
     server.post('/api/v1/disciplines', disciplineController.create.bind(disciplineController));
+    server.post('/api/v1/sports', sportController.create.bind(sportController));
     server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
 
 
