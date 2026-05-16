@@ -1,4 +1,5 @@
 ---
+id: 0013
 autor: Justina Smith
 fecha: 2026-05-02
 titulo: Alta de Payment
@@ -67,14 +68,16 @@ Request:
 Response `201 Created`:
 ```ts
 {
-  id: string;
-  member_id: string;
-  amount: number;
-  month: number;
-  year: number;
-  due_date: string;
-  status: "Pending" | "Paid" | "Canceled";
-  payment_date: string | null;
+  data: {
+    id: string;
+    member_id: string;
+    amount: number;
+    month: number;
+    year: number;
+    due_date: string;
+    status: "Pending" | "Paid" | "Canceled";
+    payment_date: string | null;
+  }
 }
 ```
 
