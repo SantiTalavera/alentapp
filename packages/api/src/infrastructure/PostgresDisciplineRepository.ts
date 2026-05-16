@@ -37,6 +37,15 @@ export class PostgresDisciplineRepository implements DisciplineRepository {
         return this.mapToDTO(created);
     }
 
+    async findById(id: string): Promise<DisciplineDTO | null> {
+        const discipline = await prisma.discipline.findUnique({
+            where: { id },
+        });
+
+        return discipline ? this.mapToDTO(discipline) : null;
+    }
+
+
     async findActiveTotalSuspensionsByMemberId(
         memberId: string,
         referenceDate = new Date()
@@ -59,6 +68,62 @@ export class PostgresDisciplineRepository implements DisciplineRepository {
 
         return disciplines.map((discipline) => this.mapToDTO(discipline));
     }
+
+    async update(
+        id: string,
+        discipline: Partial<Omit<DisciplineDTO, 'id' | 'member_id'>>
+    ): Promise<DisciplineDTO> {
+        const updated = await prisma.discipline.update({
+            where: { id },
+            data: this.buildUpdateData(discipline),
+        });
+
+        return this.mapToDTO(updated);
+    }
+
+    //Se agrega este metodo para actualizar la disciplina y el estado del socio en una sola transaccion
+    //Esto evita condiciones de carrera 
+    async updateWithMemberStatus(
+        id: string,
+        discipline: Partial<Omit<DisciplineDTO, 'id' | 'member_id'>>,
+        memberId: string,
+        memberStatus: MemberStatus
+    ): Promise<DisciplineDTO> {
+        return prisma.$transaction(async (tx) => {
+            await tx.member.update({
+                where: { id: memberId },
+                data: { status: memberStatus },
+            });
+
+            const updated = await tx.discipline.update({
+                where: { id },
+                data: this.buildUpdateData(discipline),
+            });
+
+            return this.mapToDTO(updated);
+        });
+    }
+    
+    //Se agrega este metodo helper para construir el objeto de actualizacion, 
+    //permitiendo que solo se actualicen los campos que se enviaron
+    private buildUpdateData(discipline: Partial<Omit<DisciplineDTO, 'id' | 'member_id'>>) {
+        return {
+            ...(discipline.reason !== undefined && { reason: discipline.reason }),
+            ...(discipline.start_date !== undefined && {
+                start_date: new Date(discipline.start_date),
+            }),
+            ...(discipline.end_date !== undefined && {
+                end_date: new Date(discipline.end_date),
+            }),
+            ...(discipline.is_total_suspension !== undefined && {
+                is_total_suspension: discipline.is_total_suspension,
+            }),
+            ...(discipline.previous_member_status !== undefined && {
+                previous_member_status: discipline.previous_member_status,
+            }),
+        };
+    }
+
 
     private mapToDTO(discipline: DBDiscipline): DisciplineDTO {
         return {
