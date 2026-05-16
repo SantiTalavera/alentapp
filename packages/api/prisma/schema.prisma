@@ -51,3 +51,15 @@ model Discipline {
     @@index([member_id])
     @@map("disciplines")
 }
+
+model Sport {
+    id                           String    @id @default(uuid())
+    name                         String    @unique
+    description                  String
+    max_capacity                 Int
+    additional_price             Float
+    requires_medical_certificate Boolean
+    deleted_at                   DateTime?
+
+    @@map("sports")
+}
