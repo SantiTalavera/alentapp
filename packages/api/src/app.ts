@@ -18,6 +18,7 @@ import { NewSportUseCase } from './application/sport/NewSportUseCase.js';
 import { SportController } from './delivery/SportController.js';
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
 import { CreateMedicalCertificateUseCase } from './application/medical-certificate/CreateMedicalCertificateUseCase.js';
+import { UpdateMedicalCertificateUseCase } from './application/medical-certificate/UpdateMedicalCertificateUseCase.js';
 import { MedicalCertificateController } from './delivery/MedicalCertificateController.js';
 import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
 
@@ -84,7 +85,14 @@ export function buildApp() {
         memberRepo,
         medicalCertificateValidator
     );
-    const medicalCertificateController = new MedicalCertificateController(createMedicalCertificateUseCase);
+    const updateMedicalCertificateUseCase = new UpdateMedicalCertificateUseCase(
+        medicalCertificateRepository,
+        medicalCertificateValidator
+    );
+    const medicalCertificateController = new MedicalCertificateController(
+        createMedicalCertificateUseCase,
+        updateMedicalCertificateUseCase
+    );
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
@@ -94,6 +102,7 @@ export function buildApp() {
     server.post('/api/v1/sports', sportController.create.bind(sportController));
     server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
+    server.patch('/api/v1/medical-certificates/:id', medicalCertificateController.update.bind(medicalCertificateController));
 
 
 
