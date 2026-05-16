@@ -17,6 +17,7 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - `docs/TDDs/TDD_0026` TDD de la Entidad Enrollment: Baja de inscripción (#13)
 - `docs/TDDs/TDD_0027` TDD de la Entidad Enrollment: Listado de inscripciones (#13)
 - `docs/TDDs/TDD_0029` TDD de la Entidad MedicalCertificate: Listado y Consulta de certificados (#14)
+- Alta de disciplinas: modelo Prisma, migración, tipos compartidos, dominio, caso de uso, repositorio Postgres y endpoint `POST /api/v1/disciplines` (#18)
 
 ### Changed
 
@@ -33,6 +34,7 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - `docs/TDDs/TDD_0010` TDD de la Entidad MedicalCertificate: Registro de nuevo certificado (#14)
 - `docs/TDDs/TDD_0011` TDD de la Entidad MedicalCertificate: Actualización de certificado (#14)
 - `docs/TDDs/TDD_0012` TDD de la Entidad MedicalCertificate: Baja de certificado (#14)
+- `packages/web/src/views/Members.tsx` incorpora la acción para registrar disciplinas desde la administración de miembros (#18)
 
 ---
 
