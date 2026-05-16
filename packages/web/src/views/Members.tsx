@@ -16,6 +16,7 @@ import { LuPlus, LuPencil, LuTrash2, LuRefreshCw, LuBan, LuFileText, LuDollarSig
 import { useEffect, useState } from "react";
 import { membersService } from "../services/members";
 import { disciplinesService } from "../services/disciplines";
+import { medicalCertificatesService } from "../services/medicalCertificates";
 import { paymentsService } from "../services/payments";
 import type { MemberDTO, CreateMemberRequest, UpdateMemberRequest, MemberCategory, MemberStatus, CreateDisciplineRequest, CreateMedicalCertificateRequest, CreatePaymentRequest } from "@alentapp/shared";
 import { 
