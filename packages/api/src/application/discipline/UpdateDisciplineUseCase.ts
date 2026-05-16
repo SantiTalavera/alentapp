@@ -1,4 +1,4 @@
-import { DisciplineDTO, UpdateDisciplineRequest } from '@alentapp/shared';
+import { DisciplineDTO, MemberStatus, UpdateDisciplineRequest } from '@alentapp/shared';
 import { DisciplineRepository } from '../../domain/DisciplineRepository.js';
 import { MemberRepository } from '../../domain/MemberRepository.js';
 import { DisciplineValidator } from '../../domain/services/DisciplineValidator.js';
@@ -46,6 +46,8 @@ export class UpdateDisciplineUseCase {
             previous_member_status: currentDiscipline.previous_member_status,
         };
 
+        let memberStatusToUpdate: MemberStatus | null = null;
+
         if (!wasActiveTotalSuspension && isActiveTotalSuspension) {
             const member = await this.memberRepo.findById(currentDiscipline.member_id);
             if (!member) {
@@ -72,10 +74,7 @@ export class UpdateDisciplineUseCase {
             this.validator.validatePreviousMemberStatus(previousMemberStatus);
 
             updateData.previous_member_status = previousMemberStatus;
-
-            await this.memberRepo.update(currentDiscipline.member_id, {
-                status: 'Suspendido',
-            });
+            memberStatusToUpdate = 'Suspendido';
         }
 
         if (wasActiveTotalSuspension && !isActiveTotalSuspension) {
@@ -92,12 +91,19 @@ export class UpdateDisciplineUseCase {
                 otherActiveTotalSuspensions.length === 0 &&
                 currentDiscipline.previous_member_status !== null
             ) {
-                await this.memberRepo.update(currentDiscipline.member_id, {
-                    status: currentDiscipline.previous_member_status,
-                });
+                memberStatusToUpdate = currentDiscipline.previous_member_status;
             }
 
             updateData.previous_member_status = null;
+        }
+
+        if (memberStatusToUpdate !== null) {
+            return this.disciplineRepo.updateWithMemberStatus(
+                id,
+                updateData,
+                currentDiscipline.member_id,
+                memberStatusToUpdate
+            );
         }
 
         return this.disciplineRepo.update(id, updateData);
