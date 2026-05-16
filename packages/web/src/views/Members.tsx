@@ -220,6 +220,17 @@ export function MembersView() {
     }
   };
 
+  const handleDeleteMedicalCert = async (id: string) => {
+    if (window.confirm("¿Estás seguro de que deseas eliminar este certificado médico? Esta acción no se puede deshacer.")) {
+      try {
+        await medicalCertificatesService.delete(id);
+        alert("Certificado médico eliminado correctamente.");
+      } catch (err: any) {
+        alert(err.message || "Error al eliminar el certificado médico");
+      }
+    }
+  };
+
   useEffect(() => {
     fetchMembers();
   }, []);

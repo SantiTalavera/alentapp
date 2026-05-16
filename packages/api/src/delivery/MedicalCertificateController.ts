@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { CreateMedicalCertificateRequest, UpdateMedicalCertificateRequest } from '@alentapp/shared';
 import { CreateMedicalCertificateUseCase } from '../application/medical-certificate/CreateMedicalCertificateUseCase.js';
 import { UpdateMedicalCertificateUseCase } from '../application/medical-certificate/UpdateMedicalCertificateUseCase.js';
+import { DeleteMedicalCertificateUseCase } from '../application/medical-certificate/DeleteMedicalCertificateUseCase.js';
 
 const BAD_REQUEST_MESSAGES = new Set([
     'El socio es requerido',
@@ -18,7 +19,8 @@ const BAD_REQUEST_MESSAGES = new Set([
 export class MedicalCertificateController {
     constructor(
         private readonly createMedicalCertificateUseCase: CreateMedicalCertificateUseCase,
-        private readonly updateMedicalCertificateUseCase: UpdateMedicalCertificateUseCase
+        private readonly updateMedicalCertificateUseCase: UpdateMedicalCertificateUseCase,
+        private readonly deleteMedicalCertificateUseCase: DeleteMedicalCertificateUseCase
     ) { }
 
     async create(
@@ -60,6 +62,25 @@ export class MedicalCertificateController {
 
             if (BAD_REQUEST_MESSAGES.has(message)) {
                 return reply.code(400).send({ error: message });
+            }
+
+            return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply
+    ) {
+        try {
+            const { id } = request.params;
+            await this.deleteMedicalCertificateUseCase.execute(id);
+            return reply.code(204).send();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error interno, reintente más tarde';
+
+            if (message === 'El certificado médico no existe') {
+                return reply.code(404).send({ error: message });
             }
 
             return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
