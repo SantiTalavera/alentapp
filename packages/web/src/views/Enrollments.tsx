@@ -1,3 +1,5 @@
+import type { FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -5,14 +7,25 @@ import {
   Flex,
   Heading,
   HStack,
-  Input,
+  IconButton,
+  SelectPositioner,
   Spinner,
   Stack,
+  Table,
   Text,
 } from '@chakra-ui/react';
-import type { FormEvent } from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import type { MemberDTO, SportDTO } from '@alentapp/shared';
+import { LuBan, LuCheck, LuPlus, LuRefreshCw } from 'react-icons/lu';
+import type { EnrollmentDTO, MemberDTO, SportDTO } from '@alentapp/shared';
+import {
+  DialogRoot,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+  DialogActionTrigger,
+  DialogCloseTrigger,
+} from '../components/ui/dialog';
 import { Field } from '../components/ui/field';
 import {
   SelectRoot,
@@ -22,28 +35,89 @@ import {
   SelectItem,
   createListCollection,
 } from '../components/ui/select';
-import { enrollmentsService } from '../services/enrollments';
+import {
+  enrollmentsService,
+  type EnrollmentListFilters,
+} from '../services/enrollments';
 import { membersService } from '../services/members';
 import { sportsService } from '../services/sports';
+
+type VigenciaFilter = 'all' | 'active' | 'inactive';
+
+const vigenciaCollection = createListCollection({
+  items: [
+    { label: 'Todas', value: 'all' as const },
+    { label: 'Vigentes', value: 'active' as const },
+    { label: 'Históricas / inactivas', value: 'inactive' as const },
+  ],
+});
+
+function formatEnrollmentDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString('es-AR', {
+      dateStyle: 'medium',
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export function EnrollmentsView() {
   const [members, setMembers] = useState<MemberDTO[]>([]);
   const [sports, setSports] = useState<SportDTO[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
+
+  const [catalogsLoaded, setCatalogsLoaded] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+
+  const [filterMemberId, setFilterMemberId] = useState('');
+  const [filterSportId, setFilterSportId] = useState('');
+  const [vigenciaFilter, setVigenciaFilter] =
+    useState<VigenciaFilter>('all');
+
+  const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
 
-  const [memberId, setMemberId] = useState('');
-  const [sportId, setSportId] = useState('');
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [formMemberId, setFormMemberId] = useState('');
+  const [formSportId, setFormSportId] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [enrollmentIdForVigencia, setEnrollmentIdForVigencia] = useState('');
-  const [vigenciaError, setVigenciaError] = useState<string | null>(null);
-  const [vigenciaSuccess, setVigenciaSuccess] = useState<string | null>(null);
-  const [isUpdatingVigencia, setIsUpdatingVigencia] = useState(false);
+  const [updatingEnrollmentId, setUpdatingEnrollmentId] = useState<
+    string | null
+  >(null);
 
-  const memberCollection = useMemo(
+  const filterMemberCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: 'Todos los socios', value: '__all_members__' },
+          ...members.map((m) => ({
+            label: `${m.name} — DNI ${m.dni}`,
+            value: m.id,
+          })),
+        ],
+      }),
+    [members],
+  );
+
+  const filterSportCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: 'Todos los deportes', value: '__all_sports__' },
+          ...sports.map((s) => ({
+            label: `${s.name} (cupo máx. ${s.max_capacity})`,
+            value: s.id,
+          })),
+        ],
+      }),
+    [sports],
+  );
+
+  const modalMemberCollection = useMemo(
     () =>
       createListCollection({
         items: members.map((m) => ({
@@ -51,10 +125,10 @@ export function EnrollmentsView() {
           value: m.id,
         })),
       }),
-    [members]
+    [members],
   );
 
-  const sportCollection = useMemo(
+  const modalSportCollection = useMemo(
     () =>
       createListCollection({
         items: sports.map((s) => ({
@@ -62,11 +136,86 @@ export function EnrollmentsView() {
           value: s.id,
         })),
       }),
-    [sports]
+    [sports],
   );
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const buildApiFilters = useCallback((): EnrollmentListFilters => {
+    const f: EnrollmentListFilters = {};
+    if (filterMemberId) {
+      f.memberId = filterMemberId;
+    }
+    if (filterSportId) {
+      f.sportId = filterSportId;
+    }
+    if (vigenciaFilter === 'active') {
+      f.isActive = true;
+    }
+    if (vigenciaFilter === 'inactive') {
+      f.isActive = false;
+    }
+    return f;
+  }, [filterMemberId, filterSportId, vigenciaFilter]);
+
+  const loadCatalogs = useCallback(async () => {
+    setCatalogError(null);
+    try {
+      const [membersData, sportsData] = await Promise.all([
+        membersService.getAll(),
+        sportsService.getAll(),
+      ]);
+      setMembers(membersData);
+      setSports(sportsData);
+      setCatalogsLoaded(true);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Error al cargar socios y deportes';
+      setCatalogError(message);
+      setMembers([]);
+      setSports([]);
+      setCatalogsLoaded(true);
+    }
+  }, []);
+
+  const loadEnrollments = useCallback(async () => {
+    setListLoading(true);
+    setListError(null);
+    try {
+      const data = await enrollmentsService.getAll(buildApiFilters());
+      setEnrollments(data);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Error al cargar las inscripciones';
+      setListError(message);
+      setEnrollments([]);
+    } finally {
+      setListLoading(false);
+    }
+  }, [buildApiFilters]);
+
+  useEffect(() => {
+    void loadCatalogs();
+  }, [loadCatalogs]);
+
+  useEffect(() => {
+    if (!catalogsLoaded) {
+      return;
+    }
+    void loadEnrollments();
+  }, [catalogsLoaded, loadEnrollments]);
+
+  const openCreateModal = () => {
+    setFormMemberId('');
+    setFormSportId('');
+    setFormError(null);
+    setIsCreateOpen(true);
+  };
+
+  const handleRefresh = useCallback(async () => {
+    setSuccessMessage(null);
+    setListLoading(true);
+    setCatalogError(null);
     setListError(null);
     try {
       const [membersData, sportsData] = await Promise.all([
@@ -77,260 +226,465 @@ export function EnrollmentsView() {
       setSports(sportsData);
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : 'Error al cargar los datos';
-      setListError(message);
-    } finally {
-      setIsLoading(false);
+        err instanceof Error ? err.message : 'Error al cargar socios y deportes';
+      setCatalogError(message);
+      setMembers([]);
+      setSports([]);
     }
-  };
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      void loadData();
-    });
-  }, []);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setSubmitError(null);
-    setSuccessMessage(null);
-    setIsSubmitting(true);
     try {
-      const created = await enrollmentsService.create({
-        member_id: memberId,
-        sport_id: sportId,
+      const data = await enrollmentsService.getAll(buildApiFilters());
+      setEnrollments(data);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Error al cargar las inscripciones';
+      setListError(message);
+      setEnrollments([]);
+    } finally {
+      setListLoading(false);
+    }
+  }, [buildApiFilters]);
+
+  const handleCreateSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    setIsSubmittingCreate(true);
+    try {
+      await enrollmentsService.create({
+        member_id: formMemberId,
+        sport_id: formSportId,
       });
-      setSuccessMessage(
-        `Inscripción registrada correctamente. Podés usar el ID para cambiar vigencia: ${created.id}.`
-      );
-      setEnrollmentIdForVigencia(created.id);
-      setMemberId('');
-      setSportId('');
+      setSuccessMessage('Inscripción registrada correctamente.');
+      setFormMemberId('');
+      setFormSportId('');
+      setIsCreateOpen(false);
+      await loadEnrollments();
     } catch (err: unknown) {
       const message =
         err instanceof Error
           ? err.message
           : 'No se pudo registrar la inscripción. Intente nuevamente.';
-      setSubmitError(message);
+      setFormError(message);
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingCreate(false);
     }
   };
 
-  const handleVigenciaChange = async (is_active: boolean) => {
-    setVigenciaError(null);
-    setVigenciaSuccess(null);
-    const id = enrollmentIdForVigencia.trim();
-    if (!id) {
-      setVigenciaError('Ingresá el identificador de la inscripción.');
-      return;
-    }
-    setIsUpdatingVigencia(true);
+  const handleToggleActive = async (row: EnrollmentDTO) => {
+    const nextActive = !row.is_active;
+    setUpdatingEnrollmentId(row.id);
+    setListError(null);
     try {
-      await enrollmentsService.update(id, { is_active });
-      setVigenciaSuccess(
-        is_active
-          ? 'Inscripción activada (vigente). El servidor revalidó cupo y duplicados.'
-          : 'Inscripción desactivada.'
+      await enrollmentsService.update(row.id, { is_active: nextActive });
+      setSuccessMessage(
+        nextActive
+          ? 'Inscripción activada.'
+          : 'Inscripción desactivada.',
       );
+      await loadEnrollments();
     } catch (err: unknown) {
       const message =
         err instanceof Error
           ? err.message
-          : 'No se pudo actualizar la vigencia. Intente nuevamente.';
-      setVigenciaError(message);
+          : 'No se pudo actualizar la inscripción.';
+      setListError(message);
     } finally {
-      setIsUpdatingVigencia(false);
+      setUpdatingEnrollmentId(null);
     }
   };
 
+  const memberLabel = (memberId: string) =>
+    members.find((m) => m.id === memberId)?.name ?? memberId;
+
+  const sportLabel = (sportId: string) =>
+    sports.find((s) => s.id === sportId)?.name ?? sportId;
+
   return (
-    <Stack gap="8">
-      <Flex justify="space-between" align="flex-start" wrap="wrap" gap="4">
-        <Stack gap="1">
-          <Heading size="2xl" fontWeight="bold">
-            Inscripciones
-          </Heading>
-          <Text color="fg.muted" fontSize="md" maxW="2xl">
-            Registrá la inscripción de un socio a un deporte del catálogo activo. Solo se listan
-            deportes no dados de baja; el cupo y el resto de reglas se validan al guardar.
-          </Text>
-        </Stack>
-      </Flex>
-
-      {successMessage ? (
-        <Box bg="green.50" borderWidth="1px" borderColor="green.200" borderRadius="md" p="4">
-          <Text color="green.700" fontWeight="medium">
-            {successMessage}
-          </Text>
-        </Box>
-      ) : null}
-
-      {listError ? (
-        <Box
-          p="4"
-          bg="red.50"
-          color="red.700"
-          borderRadius="md"
-          border="1px solid"
-          borderColor="red.200"
-        >
-          <Text fontWeight="bold">Error al cargar listas:</Text>
-          <Text>{listError}</Text>
-        </Box>
-      ) : null}
-
-      <Box
-        bg="bg.panel"
-        borderRadius="xl"
-        boxShadow="sm"
-        borderWidth="1px"
-        borderColor="border.muted"
-        p={{ base: '6', md: '10' }}
-        maxW="xl"
-      >
-        {isLoading ? (
-          <Center minH="200px">
-            <Stack align="center" gap="4">
-              <Spinner size="xl" color="blue.500" />
-              <Text color="fg.muted">Cargando socios y deportes...</Text>
-            </Stack>
-          </Center>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <Stack gap="6">
-              {submitError ? (
-                <Text color="red.600" fontWeight="medium">
-                  {submitError}
-                </Text>
-              ) : null}
-
-              <Field label="Socio" required>
-                <SelectRoot
-                  collection={memberCollection}
-                  value={memberId ? [memberId] : []}
-                  onValueChange={(e) => {
-                    setMemberId(e.value[0] ?? '');
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValueText placeholder="Seleccioná un socio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {memberCollection.items.map((item) => (
-                      <SelectItem item={item} key={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SelectRoot>
-              </Field>
-
-              <Field label="Deporte" required>
-                <SelectRoot
-                  collection={sportCollection}
-                  value={sportId ? [sportId] : []}
-                  onValueChange={(e) => {
-                    setSportId(e.value[0] ?? '');
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValueText placeholder="Seleccioná un deporte activo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sportCollection.items.map((item) => (
-                      <SelectItem item={item} key={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </SelectRoot>
-              </Field>
-
+    <>
+      <DialogRoot open={isCreateOpen} onOpenChange={(e) => setIsCreateOpen(e.open)}>
+        <DialogContent>
+          <form onSubmit={(ev) => void handleCreateSubmit(ev)}>
+            <DialogHeader>
+              <DialogTitle>Nueva inscripción</DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              <Stack gap="4">
+                {formError ? (
+                  <Text color="red.600" fontWeight="medium">
+                    {formError}
+                  </Text>
+                ) : null}
+                <Field label="Socio" required>
+                  <SelectRoot
+                    collection={modalMemberCollection}
+                    value={formMemberId ? [formMemberId] : []}
+                    onValueChange={(ev) =>
+                      setFormMemberId(ev.value[0] ?? '')
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValueText placeholder="Seleccioná un socio" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modalMemberCollection.items.map((item) => (
+                        <SelectItem item={item} key={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </SelectRoot>
+                </Field>
+                <Field label="Deporte" required>
+                  <SelectRoot
+                    collection={modalSportCollection}
+                    value={formSportId ? [formSportId] : []}
+                    onValueChange={(ev) =>
+                      setFormSportId(ev.value[0] ?? '')
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValueText placeholder="Seleccioná un deporte activo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modalSportCollection.items.map((item) => (
+                        <SelectItem item={item} key={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </SelectRoot>
+                </Field>
+              </Stack>
+            </DialogBody>
+            <DialogFooter>
+              <DialogActionTrigger asChild>
+                <Button variant="outline">Cancelar</Button>
+              </DialogActionTrigger>
               <Button
                 type="submit"
                 colorPalette="blue"
-                loading={isSubmitting}
-                disabled={!memberId || !sportId}
+                loading={isSubmittingCreate}
+                disabled={!formMemberId || !formSportId}
               >
                 Registrar inscripción
               </Button>
-            </Stack>
+            </DialogFooter>
+            <DialogCloseTrigger />
           </form>
-        )}
-      </Box>
+        </DialogContent>
+      </DialogRoot>
 
-      <Box
-        bg="bg.panel"
-        borderRadius="xl"
-        boxShadow="sm"
-        borderWidth="1px"
-        borderColor="border.muted"
-        p={{ base: '6', md: '8' }}
-        maxW="xl"
-      >
-        <Stack gap="4">
+      <Stack gap="8">
+        <Flex justify="space-between" align="center" wrap="wrap" gap="4">
           <Stack gap="1">
-            <Heading size="md">Cambiar vigencia de una inscripción</Heading>
-            <Text color="fg.muted" fontSize="sm">
-              Sin listado de inscripciones (pendiente de otra entrega), podés ingresar un ID
-              conocido —por ejemplo el que devuelve el alta recién arriba— para activar o
-              desactivar solo el flag <code>is_active</code> en el servidor.
+            <Heading size="2xl" fontWeight="bold">
+              Administración de Inscripciones
+            </Heading>
+            <Text color="fg.muted" fontSize="md">
+              Alta y seguimiento de inscripciones al catálogo de deportes, con vigencia gestionada desde cada fila.
             </Text>
           </Stack>
-          {vigenciaSuccess ? (
-            <Box
-              bg="green.50"
-              borderWidth="1px"
-              borderColor="green.200"
-              borderRadius="md"
-              p="3"
-            >
-              <Text color="green.700" fontWeight="medium">
-                {vigenciaSuccess}
-              </Text>
-            </Box>
-          ) : null}
-          {vigenciaError ? (
-            <Text color="red.600" fontWeight="medium">
-              {vigenciaError}
-            </Text>
-          ) : null}
-          <Field
-            label="ID de inscripción (UUID)"
-            helperText="Se completa solo al registrar arriba; también podés pegar un ID que ya tengas."
-          >
-            <Input
-              value={enrollmentIdForVigencia}
-              onChange={(e) => setEnrollmentIdForVigencia(e.target.value)}
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              fontFamily="mono"
-              fontSize="sm"
-            />
-          </Field>
-          <HStack gap="3" flexWrap="wrap">
+          <HStack gap="3">
             <Button
-              type="button"
               variant="outline"
-              colorPalette="blue"
-              loading={isUpdatingVigencia}
-              disabled={!enrollmentIdForVigencia.trim()}
-              onClick={() => void handleVigenciaChange(false)}
+              onClick={() => void handleRefresh()}
+              loading={listLoading}
             >
-              Desactivar (is_active: false)
+              <LuRefreshCw /> Actualizar
             </Button>
-            <Button
-              type="button"
-              colorPalette="blue"
-              loading={isUpdatingVigencia}
-              disabled={!enrollmentIdForVigencia.trim()}
-              onClick={() => void handleVigenciaChange(true)}
-            >
-              Activar (is_active: true)
+            <Button colorPalette="blue" size="md" onClick={openCreateModal}>
+              <LuPlus /> Nueva inscripción
             </Button>
           </HStack>
+        </Flex>
+
+        {successMessage ? (
+          <Box
+            bg="green.50"
+            borderWidth="1px"
+            borderColor="green.200"
+            borderRadius="md"
+            p="4"
+          >
+            <Text color="green.700" fontWeight="medium">
+              {successMessage}
+            </Text>
+          </Box>
+        ) : null}
+
+        {catalogError ? (
+          <Box
+            p="4"
+            bg="red.50"
+            color="red.700"
+            borderRadius="md"
+            border="1px solid"
+            borderColor="red.200"
+          >
+            <Text fontWeight="bold">Error al cargar listas auxiliares:</Text>
+            <Text>{catalogError}</Text>
+          </Box>
+        ) : null}
+
+        {listError ? (
+          <Box
+            p="4"
+            bg="red.50"
+            color="red.700"
+            borderRadius="md"
+            border="1px solid"
+            borderColor="red.200"
+          >
+            <Text fontWeight="bold">Error:</Text>
+            <Text>{listError}</Text>
+          </Box>
+        ) : null}
+
+        <Stack gap="4" overflow="visible">
+          <Heading size="md">Filtros</Heading>
+          <Flex
+            gap="4"
+            wrap="wrap"
+            align={{ base: 'stretch', md: 'flex-end' }}
+            overflow="visible"
+          >
+            <Box minW={{ base: '100%', md: '220px' }} flex="1" position="relative">
+              <Field label="Socio">
+                <SelectRoot
+                  collection={filterMemberCollection}
+                  value={
+                    filterMemberId
+                      ? [filterMemberId]
+                      : ['__all_members__']
+                  }
+                  onValueChange={(ev) => {
+                    const v = ev.value[0] ?? '__all_members__';
+                    setFilterMemberId(
+                      v === '__all_members__' ? '' : v,
+                    );
+                  }}
+                  positioning={{
+                    sameWidth: true,
+                    placement: 'bottom-start',
+                    flip: false,
+                    gutter: 4,
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValueText placeholder="Todos los socios" />
+                  </SelectTrigger>
+                  <SelectPositioner zIndex="dropdown">
+                    <SelectContent maxH="260px">
+                      {filterMemberCollection.items.map((item) => (
+                        <SelectItem item={item} key={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </SelectPositioner>
+                </SelectRoot>
+              </Field>
+            </Box>
+            <Box minW={{ base: '100%', md: '220px' }} flex="1" position="relative">
+              <Field label="Deporte">
+                <SelectRoot
+                  collection={filterSportCollection}
+                  value={
+                    filterSportId ? [filterSportId] : ['__all_sports__']
+                  }
+                  onValueChange={(ev) => {
+                    const v = ev.value[0] ?? '__all_sports__';
+                    setFilterSportId(v === '__all_sports__' ? '' : v);
+                  }}
+                  positioning={{
+                    sameWidth: true,
+                    placement: 'bottom-start',
+                    flip: false,
+                    gutter: 4,
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValueText placeholder="Todos los deportes" />
+                  </SelectTrigger>
+                  <SelectPositioner zIndex="dropdown">
+                    <SelectContent maxH="260px">
+                      {filterSportCollection.items.map((item) => (
+                        <SelectItem item={item} key={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </SelectPositioner>
+                </SelectRoot>
+              </Field>
+            </Box>
+            <Box minW={{ base: '100%', md: '260px' }} flex="1" position="relative">
+              <Field label="Vigencia">
+                <SelectRoot
+                  collection={vigenciaCollection}
+                  value={[vigenciaFilter]}
+                  onValueChange={(ev) => {
+                    const v = ev.value[0];
+                    setVigenciaFilter(
+                      (v as VigenciaFilter) ?? 'all',
+                    );
+                  }}
+                  positioning={{
+                    sameWidth: true,
+                    placement: 'bottom-start',
+                    flip: false,
+                    gutter: 4,
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValueText placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectPositioner zIndex="dropdown">
+                    <SelectContent maxH="260px">
+                      {vigenciaCollection.items.map((item) => (
+                        <SelectItem item={item} key={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </SelectPositioner>
+                </SelectRoot>
+              </Field>
+            </Box>
+          </Flex>
         </Stack>
-      </Box>
-    </Stack>
+
+        <Box
+          bg="bg.panel"
+          borderRadius="xl"
+          boxShadow="sm"
+          borderWidth="1px"
+          overflow="hidden"
+          minH="300px"
+          position="relative"
+        >
+          {!catalogsLoaded || (listLoading && enrollments.length === 0) ? (
+            <Center h="300px">
+              <Stack align="center" gap="4">
+                <Spinner size="xl" color="blue.500" />
+                <Text color="fg.muted">
+                  {!catalogsLoaded
+                    ? 'Cargando datos...'
+                    : 'Cargando inscripciones...'}
+                </Text>
+              </Stack>
+            </Center>
+          ) : enrollments.length === 0 && !listLoading ? (
+            <Center h="300px">
+              <Stack align="center" gap="4">
+                <Text color="fg.muted">
+                  No hay inscripciones que coincidan con los filtros.
+                </Text>
+                <Button variant="ghost" onClick={() => void loadEnrollments()}>
+                  Reintentar
+                </Button>
+              </Stack>
+            </Center>
+          ) : (
+            <Table.Root size="md" variant="line" interactive>
+              <Table.Header>
+                <Table.Row bg="bg.muted/50">
+                  <Table.ColumnHeader py="4">Socio</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Deporte</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">
+                    Fecha de inscripción
+                  </Table.ColumnHeader>
+                  <Table.ColumnHeader py="4">Estado</Table.ColumnHeader>
+                  <Table.ColumnHeader py="4" textAlign="end">
+                    Acciones
+                  </Table.ColumnHeader>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {enrollments.map((row) => (
+                  <Table.Row key={row.id} _hover={{ bg: 'bg.muted/30' }}>
+                    <Table.Cell fontWeight="semibold" color="fg.emphasized">
+                      {memberLabel(row.member_id)}
+                    </Table.Cell>
+                    <Table.Cell color="fg.muted">
+                      {sportLabel(row.sport_id)}
+                    </Table.Cell>
+                    <Table.Cell color="fg.muted">
+                      {formatEnrollmentDate(row.enrollment_date)}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Box
+                        display="inline-block"
+                        px="2"
+                        py="0.5"
+                        borderRadius="md"
+                        bg={row.is_active ? 'green.50' : 'gray.100'}
+                        color={row.is_active ? 'green.700' : 'gray.700'}
+                        fontSize="xs"
+                        fontWeight="bold"
+                      >
+                        {row.is_active ? 'Vigente' : 'Histórica'}
+                      </Box>
+                    </Table.Cell>
+                    <Table.Cell textAlign="end">
+                      <HStack gap="1" justify="flex-end">
+                        {row.is_active ? (
+                          <IconButton
+                            variant="ghost"
+                            size="sm"
+                            colorPalette="orange"
+                            aria-label="Desactivar inscripción"
+                            title="Desactivar inscripción"
+                            loading={updatingEnrollmentId === row.id}
+                            disabled={
+                              updatingEnrollmentId !== null &&
+                              updatingEnrollmentId !== row.id
+                            }
+                            onClick={() =>
+                              void handleToggleActive(row)
+                            }
+                          >
+                            <LuBan />
+                          </IconButton>
+                        ) : (
+                          <IconButton
+                            variant="ghost"
+                            size="sm"
+                            colorPalette="green"
+                            aria-label="Activar inscripción"
+                            title="Activar inscripción"
+                            loading={updatingEnrollmentId === row.id}
+                            disabled={
+                              updatingEnrollmentId !== null &&
+                              updatingEnrollmentId !== row.id
+                            }
+                            onClick={() =>
+                              void handleToggleActive(row)
+                            }
+                          >
+                            <LuCheck />
+                          </IconButton>
+                        )}
+                      </HStack>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Root>
+          )}
+          {listLoading && enrollments.length > 0 ? (
+            <Center
+              position="absolute"
+              inset="0"
+              bg="bg.panel/70"
+              zIndex={1}
+            >
+              <Spinner size="xl" color="blue.500" />
+            </Center>
+          ) : null}
+        </Box>
+      </Stack>
+    </>
   );
 }
