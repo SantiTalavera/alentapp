@@ -89,6 +89,14 @@ export class PostgresPaymentRepository implements PaymentRepository {
         }
     }
 
+    async cancel(id: string): Promise<PaymentDTO> {
+        const updated = await prisma.payment.update({
+            where: { id },
+            data: { status: 'Canceled' }
+        });
+        return this.mapToDTO(updated);
+    }
+
     private mapToDTO(row: DBPayment): PaymentDTO {
         return {
             id: row.id,
