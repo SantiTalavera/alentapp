@@ -5,9 +5,9 @@ import {
 } from '@alentapp/shared';
 
 export type EnrollmentFilters = {
-    member_id?: string;
-    sport_id?: string;
-    is_active?: boolean;
+    memberId?: string;
+    sportId?: string;
+    isActive?: boolean;
 };
 
 export interface EnrollmentRepository {
