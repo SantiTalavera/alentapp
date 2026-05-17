@@ -5,6 +5,8 @@ import {
 } from '@alentapp/shared';
 import { CreateEnrollmentUseCase } from '../application/enrollment/CreateEnrollmentUseCase.js';
 import { UpdateEnrollmentUseCase } from '../application/enrollment/UpdateEnrollmentUseCase.js';
+import { GetEnrollmentsUseCase } from '../application/enrollment/GetEnrollmentsUseCase.js';
+import { GetEnrollmentByIdUseCase } from '../application/enrollment/GetEnrollmentByIdUseCase.js';
 
 const BAD_REQUEST_MESSAGES = new Set([
     'El socio es obligatorio',
@@ -14,11 +16,15 @@ const BAD_REQUEST_MESSAGES = new Set([
     'Se requiere al menos un campo para actualizar',
     'Campo no permitido para modificación',
     'El campo is_active debe ser booleano',
+    'Identificador de socio inválido',
+    'Identificador de deporte inválido',
+    'Filtro de vigencia inválido',
 ]);
 
 const NOT_FOUND_MESSAGES = new Set([
     'Socio no encontrado',
     'Deporte no encontrado',
+    'Inscripción no encontrada',
 ]);
 
 const CONFLICT_MESSAGES = new Set([
@@ -34,8 +40,68 @@ const CONFLICT_MESSAGES = new Set([
 export class EnrollmentController {
     constructor(
         private readonly createEnrollmentUseCase: CreateEnrollmentUseCase,
-        private readonly updateEnrollmentUseCase: UpdateEnrollmentUseCase
+        private readonly updateEnrollmentUseCase: UpdateEnrollmentUseCase,
+        private readonly getEnrollmentsUseCase: GetEnrollmentsUseCase,
+        private readonly getEnrollmentByIdUseCase: GetEnrollmentByIdUseCase
     ) {}
+
+    async getAll(
+        request: FastifyRequest<{
+            Querystring: {
+                memberId?: string;
+                sportId?: string;
+                isActive?: string;
+            };
+        }>,
+        reply: FastifyReply
+    ) {
+        try {
+            const list = await this.getEnrollmentsUseCase.execute({
+                memberId: request.query.memberId,
+                sportId: request.query.sportId,
+                isActive: request.query.isActive,
+            });
+            return reply.code(200).send({ data: list });
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : 'Error interno, reintente más tarde';
+
+            if (BAD_REQUEST_MESSAGES.has(message)) {
+                return reply.code(400).send({ error: message });
+            }
+
+            return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async getById(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply
+    ) {
+        try {
+            const enrollment = await this.getEnrollmentByIdUseCase.execute(
+                request.params.id
+            );
+            return reply.code(200).send({ data: enrollment });
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : 'Error interno, reintente más tarde';
+
+            if (BAD_REQUEST_MESSAGES.has(message)) {
+                return reply.code(400).send({ error: message });
+            }
+
+            if (NOT_FOUND_MESSAGES.has(message)) {
+                return reply.code(404).send({ error: message });
+            }
+
+            return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
 
     async create(
         request: FastifyRequest<{ Body: CreateEnrollmentRequest }>,

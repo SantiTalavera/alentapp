@@ -37,6 +37,8 @@ import { PostgresEnrollmentRepository } from './infrastructure/PostgresEnrollmen
 import { EnrollmentValidator } from './domain/services/EnrollmentValidator.js';
 import { CreateEnrollmentUseCase } from './application/enrollment/CreateEnrollmentUseCase.js';
 import { UpdateEnrollmentUseCase } from './application/enrollment/UpdateEnrollmentUseCase.js';
+import { GetEnrollmentsUseCase } from './application/enrollment/GetEnrollmentsUseCase.js';
+import { GetEnrollmentByIdUseCase } from './application/enrollment/GetEnrollmentByIdUseCase.js';
 import { EnrollmentController } from './delivery/EnrollmentController.js';
 
 export function buildApp() {
@@ -160,9 +162,15 @@ export function buildApp() {
         enrollmentRepository,
         enrollmentValidator
     );
+    const getEnrollmentsUseCase = new GetEnrollmentsUseCase(enrollmentRepository);
+    const getEnrollmentByIdUseCase = new GetEnrollmentByIdUseCase(
+        enrollmentRepository
+    );
     const enrollmentController = new EnrollmentController(
         createEnrollmentUseCase,
-        updateEnrollmentUseCase
+        updateEnrollmentUseCase,
+        getEnrollmentsUseCase,
+        getEnrollmentByIdUseCase
     );
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
@@ -189,6 +197,14 @@ export function buildApp() {
     server.patch(
         '/api/v1/enrollments/:id',
         enrollmentController.update.bind(enrollmentController)
+    );
+    server.get(
+        '/api/v1/enrollments',
+        enrollmentController.getAll.bind(enrollmentController)
+    );
+    server.get(
+        '/api/v1/enrollments/:id',
+        enrollmentController.getById.bind(enrollmentController)
     );
     server.get('/api/v1/payments', paymentController.getAll.bind(paymentController));
     server.get('/api/v1/payments/:id', paymentController.getById.bind(paymentController));
