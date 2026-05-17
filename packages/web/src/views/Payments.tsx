@@ -7,8 +7,21 @@ import {
   Flex,
   Spinner,
   Center,
-  Input
+  Input,
+  Button,
+  HStack
 } from "@chakra-ui/react";
+import {
+  DialogRoot,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+  DialogActionTrigger,
+  DialogCloseTrigger
+} from "../components/ui/dialog";
+import { Field } from "../components/ui/field";
 import { useEffect, useState, useMemo } from "react";
 import { paymentsService } from "../services/payments";
 import { membersService } from "../services/members";
@@ -50,6 +63,11 @@ export function PaymentsView() {
   const [filterYear, setFilterYear] = useState<string>("");
   const [filterMemberId, setFilterMemberId] = useState<string>("all");
 
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentDTO | null>(null);
+  const [editFormData, setEditFormData] = useState({ amount: 0, due_date: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const fetchMembers = async () => {
     try {
       const data = await membersService.getAll();
@@ -75,6 +93,40 @@ export function PaymentsView() {
       setError(err.message || "Error al cargar los pagos");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const openEditDialog = (payment: PaymentDTO) => {
+    setEditingPayment(payment);
+    setEditFormData({ amount: payment.amount, due_date: payment.due_date.split('T')[0] });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPayment) return;
+    setIsSubmitting(true);
+    try {
+      await paymentsService.update(editingPayment.id, {
+        amount: editFormData.amount,
+        due_date: new Date(editFormData.due_date).toISOString()
+      });
+      setIsEditDialogOpen(false);
+      fetchPayments();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCharge = async (id: string) => {
+    if (!window.confirm("¿Está seguro de marcar este pago como cobrado? Esta acción es irreversible.")) return;
+    try {
+      await paymentsService.update(id, { status: 'Paid' });
+      fetchPayments();
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
@@ -210,6 +262,7 @@ export function PaymentsView() {
                 <Table.ColumnHeader>Monto</Table.ColumnHeader>
                 <Table.ColumnHeader>Vencimiento</Table.ColumnHeader>
                 <Table.ColumnHeader>Estado</Table.ColumnHeader>
+                <Table.ColumnHeader textAlign="end">Acciones</Table.ColumnHeader>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -243,6 +296,26 @@ export function PaymentsView() {
                         {getStatusLabel(payment.status)}
                       </Box>
                     </Table.Cell>
+                    <Table.Cell textAlign="end">
+                        <HStack gap="2" justify="flex-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            colorPalette="blue"
+                            onClick={() => openEditDialog(payment)}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            colorPalette="green"
+                            onClick={() => handleCharge(payment.id)}
+                          >
+                            Cobrar
+                          </Button>
+                        </HStack>
+                    </Table.Cell>
                   </Table.Row>
                 );
               })}
@@ -250,6 +323,47 @@ export function PaymentsView() {
           </Table.Root>
         )}
       </Box>
+
+      <DialogRoot open={isEditDialogOpen} onOpenChange={(e) => setIsEditDialogOpen(e.open)}>
+        <DialogContent>
+          <form onSubmit={handleEditSubmit}>
+            <DialogHeader>
+              <DialogTitle>Modificar Pago</DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              <Stack gap="4">
+                <Field label="Monto" required>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={editFormData.amount}
+                    onChange={(e) => setEditFormData({ ...editFormData, amount: parseFloat(e.target.value) })}
+                    required
+                  />
+                </Field>
+                <Field label="Fecha de Vencimiento" required>
+                  <Input
+                    type="date"
+                    value={editFormData.due_date}
+                    onChange={(e) => setEditFormData({ ...editFormData, due_date: e.target.value })}
+                    required
+                  />
+                </Field>
+              </Stack>
+            </DialogBody>
+            <DialogFooter>
+              <DialogActionTrigger asChild>
+                <Button variant="outline">Cancelar</Button>
+              </DialogActionTrigger>
+              <Button type="submit" colorPalette="blue" loading={isSubmitting}>
+                Guardar
+              </Button>
+            </DialogFooter>
+            <DialogCloseTrigger />
+          </form>
+        </DialogContent>
+      </DialogRoot>
     </Stack>
   );
 }
