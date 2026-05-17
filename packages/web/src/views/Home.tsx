@@ -1,5 +1,5 @@
 import { Box, SimpleGrid, Heading, Text, VStack } from "@chakra-ui/react";
-import { LuUsers, LuMedal } from "react-icons/lu";
+import { LuUsers, LuMedal, LuClipboardPen } from "react-icons/lu";
 import { SectionCard } from "../components/SectionCard";
 
 export function HomeView() {
@@ -36,6 +36,13 @@ export function HomeView() {
           description="Registra nuevos deportes del club: cupos, precios adicionales y requisitos de certificado médico."
           to="/sports"
           icon={LuMedal}
+        />
+
+        <SectionCard
+          title="Inscripciones"
+          description="Asociá socios a deportes activos validando cupo y reglas del club desde un único alta."
+          to="/enrollments"
+          icon={LuClipboardPen}
         />
 
         {/* Future sections can be added here following the same pattern */}
