@@ -26,6 +26,8 @@ export let router = createBrowserRouter([
       {
         path: "/enrollments",
         Component: EnrollmentsView,
+      },
+      {
         path: "/payments",
         Component: PaymentsView,
       },
