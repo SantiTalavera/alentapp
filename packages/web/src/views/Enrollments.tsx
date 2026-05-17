@@ -14,7 +14,7 @@ import {
   Table,
   Text,
 } from '@chakra-ui/react';
-import { LuBan, LuCheck, LuPlus, LuRefreshCw } from 'react-icons/lu';
+import { LuBan, LuCheck, LuPlus, LuRefreshCw, LuTrash2 } from 'react-icons/lu';
 import type { EnrollmentDTO, MemberDTO, SportDTO } from '@alentapp/shared';
 import {
   DialogRoot,
@@ -86,6 +86,10 @@ export function EnrollmentsView() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [updatingEnrollmentId, setUpdatingEnrollmentId] = useState<
+    string | null
+  >(null);
+
+  const [deletingEnrollmentId, setDeletingEnrollmentId] = useState<
     string | null
   >(null);
 
@@ -291,6 +295,30 @@ export function EnrollmentsView() {
       setListError(message);
     } finally {
       setUpdatingEnrollmentId(null);
+    }
+  };
+
+  const handleSoftDelete = async (row: EnrollmentDTO) => {
+    const confirmed = window.confirm(
+      '¿Seguro que querés dar de baja esta inscripción? Esta acción la quitará del listado operativo y no podrá activarse desde esta pantalla.',
+    );
+    if (!confirmed) {
+      return;
+    }
+    setDeletingEnrollmentId(row.id);
+    setListError(null);
+    try {
+      await enrollmentsService.softDelete(row.id);
+      setSuccessMessage('Inscripción dada de baja correctamente.');
+      await loadEnrollments();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'No se pudo dar de baja la inscripción.';
+      setListError(message);
+    } finally {
+      setDeletingEnrollmentId(null);
     }
   };
 
@@ -638,8 +666,9 @@ export function EnrollmentsView() {
                             title="Desactivar inscripción"
                             loading={updatingEnrollmentId === row.id}
                             disabled={
-                              updatingEnrollmentId !== null &&
-                              updatingEnrollmentId !== row.id
+                              deletingEnrollmentId !== null ||
+                              (updatingEnrollmentId !== null &&
+                                updatingEnrollmentId !== row.id)
                             }
                             onClick={() =>
                               void handleToggleActive(row)
@@ -656,8 +685,9 @@ export function EnrollmentsView() {
                             title="Activar inscripción"
                             loading={updatingEnrollmentId === row.id}
                             disabled={
-                              updatingEnrollmentId !== null &&
-                              updatingEnrollmentId !== row.id
+                              deletingEnrollmentId !== null ||
+                              (updatingEnrollmentId !== null &&
+                                updatingEnrollmentId !== row.id)
                             }
                             onClick={() =>
                               void handleToggleActive(row)
@@ -666,6 +696,22 @@ export function EnrollmentsView() {
                             <LuCheck />
                           </IconButton>
                         )}
+                        <IconButton
+                          variant="ghost"
+                          size="sm"
+                          colorPalette="red"
+                          aria-label="Dar de baja inscripción"
+                          title="Dar de baja inscripción"
+                          loading={deletingEnrollmentId === row.id}
+                          disabled={
+                            updatingEnrollmentId !== null ||
+                            (deletingEnrollmentId !== null &&
+                              deletingEnrollmentId !== row.id)
+                          }
+                          onClick={() => void handleSoftDelete(row)}
+                        >
+                          <LuTrash2 />
+                        </IconButton>
                       </HStack>
                     </Table.Cell>
                   </Table.Row>

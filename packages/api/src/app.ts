@@ -39,6 +39,7 @@ import { CreateEnrollmentUseCase } from './application/enrollment/CreateEnrollme
 import { UpdateEnrollmentUseCase } from './application/enrollment/UpdateEnrollmentUseCase.js';
 import { GetEnrollmentsUseCase } from './application/enrollment/GetEnrollmentsUseCase.js';
 import { GetEnrollmentByIdUseCase } from './application/enrollment/GetEnrollmentByIdUseCase.js';
+import { DeleteEnrollmentUseCase } from './application/enrollment/DeleteEnrollmentUseCase.js';
 import { EnrollmentController } from './delivery/EnrollmentController.js';
 
 export function buildApp() {
@@ -166,11 +167,15 @@ export function buildApp() {
     const getEnrollmentByIdUseCase = new GetEnrollmentByIdUseCase(
         enrollmentRepository
     );
+    const deleteEnrollmentUseCase = new DeleteEnrollmentUseCase(
+        enrollmentRepository
+    );
     const enrollmentController = new EnrollmentController(
         createEnrollmentUseCase,
         updateEnrollmentUseCase,
         getEnrollmentsUseCase,
-        getEnrollmentByIdUseCase
+        getEnrollmentByIdUseCase,
+        deleteEnrollmentUseCase
     );
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
@@ -205,6 +210,10 @@ export function buildApp() {
     server.get(
         '/api/v1/enrollments/:id',
         enrollmentController.getById.bind(enrollmentController)
+    );
+    server.delete(
+        '/api/v1/enrollments/:id',
+        enrollmentController.delete.bind(enrollmentController)
     );
     server.get('/api/v1/payments', paymentController.getAll.bind(paymentController));
     server.get('/api/v1/payments/:id', paymentController.getById.bind(paymentController));

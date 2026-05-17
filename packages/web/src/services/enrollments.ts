@@ -106,9 +106,28 @@ export async function getById(id: string): Promise<EnrollmentDTO> {
   return result.data as EnrollmentDTO;
 }
 
+export async function softDelete(id: string): Promise<EnrollmentDTO> {
+  const response = await fetch(
+    `${API_URL}/enrollments/${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      (errorData as { error?: string }).error ||
+        'Error al dar de baja la inscripción',
+    );
+  }
+
+  const result = await response.json();
+  return result.data as EnrollmentDTO;
+}
+
 export const enrollmentsService = {
   create,
   update,
   getAll,
   getById,
+  softDelete,
 };

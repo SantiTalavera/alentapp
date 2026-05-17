@@ -7,6 +7,7 @@ import { CreateEnrollmentUseCase } from '../application/enrollment/CreateEnrollm
 import { UpdateEnrollmentUseCase } from '../application/enrollment/UpdateEnrollmentUseCase.js';
 import { GetEnrollmentsUseCase } from '../application/enrollment/GetEnrollmentsUseCase.js';
 import { GetEnrollmentByIdUseCase } from '../application/enrollment/GetEnrollmentByIdUseCase.js';
+import { DeleteEnrollmentUseCase } from '../application/enrollment/DeleteEnrollmentUseCase.js';
 
 const BAD_REQUEST_MESSAGES = new Set([
     'El socio es obligatorio',
@@ -35,6 +36,7 @@ const CONFLICT_MESSAGES = new Set([
     'El socio no está habilitado',
     'El deporte no está disponible',
     'Ya existe una inscripción activa para este deporte',
+    'La inscripción ya fue eliminada',
 ]);
 
 export class EnrollmentController {
@@ -42,7 +44,8 @@ export class EnrollmentController {
         private readonly createEnrollmentUseCase: CreateEnrollmentUseCase,
         private readonly updateEnrollmentUseCase: UpdateEnrollmentUseCase,
         private readonly getEnrollmentsUseCase: GetEnrollmentsUseCase,
-        private readonly getEnrollmentByIdUseCase: GetEnrollmentByIdUseCase
+        private readonly getEnrollmentByIdUseCase: GetEnrollmentByIdUseCase,
+        private readonly deleteEnrollmentUseCase: DeleteEnrollmentUseCase
     ) {}
 
     async getAll(
@@ -170,6 +173,39 @@ export class EnrollmentController {
 
             if (BAD_REQUEST_MESSAGES.has(message)) {
                 return reply.code(400).send({ error: message });
+            }
+
+            return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply
+    ) {
+        try {
+            const enrollment = await this.deleteEnrollmentUseCase.execute(
+                request.params.id
+            );
+            return reply.code(200).send({ data: enrollment });
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : 'Error interno, reintente más tarde';
+
+            if (
+                message === 'Identificador de inscripción inválido'
+            ) {
+                return reply.code(400).send({ error: message });
+            }
+
+            if (message === 'Inscripción no encontrada') {
+                return reply.code(404).send({ error: message });
+            }
+
+            if (message === 'La inscripción ya fue eliminada') {
+                return reply.code(409).send({ error: message });
             }
 
             return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
