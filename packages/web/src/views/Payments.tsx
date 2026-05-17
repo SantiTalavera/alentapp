@@ -7,7 +7,8 @@ import {
   Flex,
   Spinner,
   Center,
-  Input
+  Input,
+  Button
 } from "@chakra-ui/react";
 import { useEffect, useState, useMemo } from "react";
 import { paymentsService } from "../services/payments";
@@ -75,6 +76,16 @@ export function PaymentsView() {
       setError(err.message || "Error al cargar los pagos");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    if (!window.confirm("¿Está seguro que desea cancelar este pago?")) return;
+    try {
+      await paymentsService.cancel(id);
+      fetchPayments();
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
@@ -210,6 +221,7 @@ export function PaymentsView() {
                 <Table.ColumnHeader>Monto</Table.ColumnHeader>
                 <Table.ColumnHeader>Vencimiento</Table.ColumnHeader>
                 <Table.ColumnHeader>Estado</Table.ColumnHeader>
+                <Table.ColumnHeader textAlign="end">Acciones</Table.ColumnHeader>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -242,6 +254,11 @@ export function PaymentsView() {
                       >
                         {getStatusLabel(payment.status)}
                       </Box>
+                    </Table.Cell>
+                    <Table.Cell textAlign="end">
+                        <Button size="sm" colorPalette="red" variant="ghost" onClick={() => handleCancel(payment.id)}>
+                          Cancelar
+                        </Button>
                     </Table.Cell>
                   </Table.Row>
                 );

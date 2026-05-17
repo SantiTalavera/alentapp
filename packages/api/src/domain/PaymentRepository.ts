@@ -5,4 +5,5 @@ export interface PaymentRepository {
     findById(id: string): Promise<PaymentDTO | null>;
     findByPeriod(member_id: string, month: number, year: number): Promise<PaymentDTO | null>;
     create(data: CreatePaymentRequest & { status: string; payment_date: string | null }): Promise<PaymentDTO>;
+    cancel(id: string): Promise<PaymentDTO>;
 }

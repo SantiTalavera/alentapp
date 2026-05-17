@@ -4,6 +4,8 @@ import { CreatePaymentUseCase } from '../application/payment/CreatePaymentUseCas
 import { GetPaymentsUseCase } from '../application/payment/GetPaymentsUseCase.js';
 import { GetPaymentByIdUseCase } from '../application/payment/GetPaymentByIdUseCase.js';
 
+import { CancelPaymentUseCase } from '../application/payment/CancelPaymentUseCase.js';
+
 const BAD_REQUEST_MESSAGES = new Set([
     'Campo requerido: member_id',
     'Campo requerido: amount',
@@ -21,8 +23,28 @@ export class PaymentController {
     constructor(
         private readonly createPaymentUseCase: CreatePaymentUseCase,
         private readonly getPaymentsUseCase: GetPaymentsUseCase,
-        private readonly getPaymentByIdUseCase: GetPaymentByIdUseCase
+        private readonly getPaymentByIdUseCase: GetPaymentByIdUseCase,
+        private readonly cancelPaymentUseCase: CancelPaymentUseCase
     ) { }
+
+    async delete(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+        try {
+            const payment = await this.cancelPaymentUseCase.execute(request.params.id);
+            return reply.code(200).send({ data: payment });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error interno';
+            if (message === 'Pago no encontrado') {
+                return reply.code(404).send({ error: message });
+            }
+            if (message === 'El pago ya se encuentra cancelado') {
+                return reply.code(409).send({ error: message });
+            }
+            if (message === 'No se puede cancelar un pago ya efectuado') {
+                return reply.code(422).send({ error: message });
+            }
+            return reply.code(500).send({ error: 'Error interno' });
+        }
+    }
 
     async getAll(request: FastifyRequest<{ Querystring: { memberId?: string, status?: string, month?: string, year?: string } }>, reply: FastifyReply) {
         try {
