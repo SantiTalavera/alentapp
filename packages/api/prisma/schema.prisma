@@ -37,6 +37,7 @@ model Member {
     medicalCertificates MedicalCertificate[]
     payments            Payment[]
     enrollments         Enrollment[]
+    equipmentLoans      EquipmentLoan[]
 
     @@map("members") // Para que en la DB la tabla se llame 'members' en minúscula
 }
@@ -110,4 +111,25 @@ model Payment {
 
     @@unique([member_id, month, year])
     @@map("payments")
+}
+
+enum LoanStatus {
+    Prestado
+    Devuelto
+    Dañado
+}
+
+model EquipmentLoan {
+    id        String     @id @default(uuid())
+    item_name String
+    status    LoanStatus @default(Prestado)
+    loan_date DateTime   @default(now())
+    due_date  DateTime?
+    member_id String
+    deleted_at DateTime?
+
+    member Member @relation(fields: [member_id], references: [id], onDelete: Restrict)
+
+    @@index([member_id])
+    @@map("equipment_loans")
 }

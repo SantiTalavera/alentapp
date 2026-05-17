@@ -43,6 +43,10 @@ import { GetEnrollmentsUseCase } from './application/enrollment/GetEnrollmentsUs
 import { GetEnrollmentByIdUseCase } from './application/enrollment/GetEnrollmentByIdUseCase.js';
 import { DeleteEnrollmentUseCase } from './application/enrollment/DeleteEnrollmentUseCase.js';
 import { EnrollmentController } from './delivery/EnrollmentController.js';
+import { PostgresEquipmentLoanRepository } from './infrastructure/PostgresEquipmentLoanRepository.js';
+import { EquipmentLoanValidator } from './domain/services/EquipmentLoanValidator.js';
+import { CreateEquipmentLoanUseCase } from './application/loan/CreateEquipmentLoanUseCase.js';
+import { EquipmentLoanController } from './delivery/EquipmentLoanController.js';
 
 export function buildApp() {
     const server = Fastify({
@@ -184,6 +188,14 @@ export function buildApp() {
         deleteEnrollmentUseCase
     );
 
+    const equipmentLoanRepository = new PostgresEquipmentLoanRepository();
+    const equipmentLoanValidator = new EquipmentLoanValidator(memberRepo);
+    const createEquipmentLoanUseCase = new CreateEquipmentLoanUseCase(
+        equipmentLoanRepository,
+        equipmentLoanValidator
+    );
+    const equipmentLoanController = new EquipmentLoanController(createEquipmentLoanUseCase);
+
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
@@ -224,6 +236,7 @@ export function buildApp() {
     server.get('/api/v1/payments', paymentController.getAll.bind(paymentController));
     server.get('/api/v1/payments/:id', paymentController.getById.bind(paymentController));
     server.patch('/api/v1/payments/:id', paymentController.update.bind(paymentController));
+    server.post('/api/v1/loans', equipmentLoanController.create.bind(equipmentLoanController));
     server.delete('/api/v1/payments/:id', paymentController.delete.bind(paymentController));
 
 

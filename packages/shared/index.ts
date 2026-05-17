@@ -161,3 +161,24 @@ export interface CreateEnrollmentRequest {
 export interface UpdateEnrollmentRequest {
   is_active?: boolean;
 }
+
+// ==========================================
+// EquipmentLoan
+// ==========================================
+export type LoanStatus = 'Prestado' | 'Devuelto' | 'Dañado';
+
+export interface EquipmentLoanDTO {
+  id: string; // UUID
+  item_name: string;
+  status: LoanStatus;
+  loan_date: string; // ISO Date String
+  due_date: string | null; // ISO Date String
+  member_id: string; // UUID
+  deleted_at: string | null; // ISO Date String
+}
+
+export interface CreateEquipmentLoanRequest {
+  item_name: string;
+  due_date?: string; // ISO Date String (opcional)
+  member_id: string; // UUID
+}
