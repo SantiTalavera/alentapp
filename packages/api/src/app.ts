@@ -31,6 +31,10 @@ import { MedicalCertificateValidator } from './domain/services/MedicalCertificat
 import { PostgresPaymentRepository } from './infrastructure/PostgresPaymentRepository.js';
 import { CreatePaymentUseCase } from './application/payment/CreatePaymentUseCase.js';
 import { PaymentController } from './delivery/PaymentController.js';
+import { PostgresEnrollmentRepository } from './infrastructure/PostgresEnrollmentRepository.js';
+import { EnrollmentValidator } from './domain/services/EnrollmentValidator.js';
+import { CreateEnrollmentUseCase } from './application/enrollment/CreateEnrollmentUseCase.js';
+import { EnrollmentController } from './delivery/EnrollmentController.js';
 
 export function buildApp() {
     const server = Fastify({
@@ -133,6 +137,20 @@ export function buildApp() {
     );
     const paymentController = new PaymentController(createPaymentUseCase);
 
+    const enrollmentRepository = new PostgresEnrollmentRepository();
+    const enrollmentValidator = new EnrollmentValidator(
+        enrollmentRepository,
+        memberRepo,
+        sportRepository
+    );
+    const createEnrollmentUseCase = new CreateEnrollmentUseCase(
+        enrollmentRepository,
+        enrollmentValidator
+    );
+    const enrollmentController = new EnrollmentController(
+        createEnrollmentUseCase
+    );
+
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
@@ -150,6 +168,10 @@ export function buildApp() {
     server.get('/api/v1/members/:memberId/medical-certificates', medicalCertificateController.getByMemberId.bind(medicalCertificateController));
     server.get('/api/v1/medical-certificates/:id', medicalCertificateController.getById.bind(medicalCertificateController));
     server.post('/api/v1/payments', paymentController.create.bind(paymentController));
+    server.post(
+        '/api/v1/enrollments',
+        enrollmentController.create.bind(enrollmentController)
+    );
 
 
 
