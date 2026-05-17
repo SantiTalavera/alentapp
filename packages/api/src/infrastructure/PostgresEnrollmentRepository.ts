@@ -7,6 +7,7 @@ import {
 import {
     CreateEnrollmentRequest,
     EnrollmentDTO,
+    UpdateEnrollmentRequest,
 } from '@alentapp/shared';
 
 if (!process.env.DATABASE_URL) {
@@ -38,8 +39,8 @@ export class PostgresEnrollmentRepository implements EnrollmentRepository {
     }
 
     async findById(id: string): Promise<EnrollmentDTO | null> {
-        const row = await prisma.enrollment.findFirst({
-            where: { id, deleted_at: null },
+        const row = await prisma.enrollment.findUnique({
+            where: { id },
         });
         return row ? this.mapToDTO(row) : null;
     }
@@ -90,7 +91,7 @@ export class PostgresEnrollmentRepository implements EnrollmentRepository {
 
     async update(
         id: string,
-        data: Partial<Pick<EnrollmentDTO, 'is_active'>>
+        data: UpdateEnrollmentRequest
     ): Promise<EnrollmentDTO> {
         const updated = await prisma.enrollment.update({
             where: { id },

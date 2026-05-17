@@ -1,6 +1,7 @@
 import {
     CreateEnrollmentRequest,
     EnrollmentDTO,
+    UpdateEnrollmentRequest,
 } from '@alentapp/shared';
 
 export type EnrollmentFilters = {
@@ -20,7 +21,7 @@ export interface EnrollmentRepository {
     countActiveBySportId(sport_id: string): Promise<number>;
     update(
         id: string,
-        data: Partial<Pick<EnrollmentDTO, 'is_active'>>
+        data: UpdateEnrollmentRequest
     ): Promise<EnrollmentDTO>;
     softDelete(id: string): Promise<EnrollmentDTO>;
 }
