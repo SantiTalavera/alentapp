@@ -78,7 +78,9 @@ export function EnrollmentsView() {
   };
 
   useEffect(() => {
-    loadData();
+    queueMicrotask(() => {
+      void loadData();
+    });
   }, []);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -110,9 +112,8 @@ export function EnrollmentsView() {
             Inscripciones
           </Heading>
           <Text color="fg.muted" fontSize="md" maxW="2xl">
-            Registrá la inscripción de un socio a un deporte activo del club. Solo se muestran
-            deportes con cupo disponible en catálogo; la validación definitiva ocurre en el
-            servidor.
+            Registrá la inscripción de un socio a un deporte del catálogo activo. Solo se listan
+            deportes no dados de baja; el cupo y el resto de reglas se validan al guardar.
           </Text>
         </Stack>
       </Flex>
