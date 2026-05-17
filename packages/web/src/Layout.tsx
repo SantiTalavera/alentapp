@@ -45,6 +45,8 @@ function Layout() {
                                 Deportes
                             </Text>
                         </RouterLink>
+                        <RouterLink to="/enrollments">
+                          
                         <RouterLink to="/payments">
                             <Text 
                                 fontWeight="semibold" 
@@ -54,6 +56,7 @@ function Layout() {
                                 color="fg.muted"
                                 _hover={{ color: "blue.500", textDecoration: "none" }}
                             >
+                                Inscripciones
                                 Pagos
                             </Text>
                         </RouterLink>

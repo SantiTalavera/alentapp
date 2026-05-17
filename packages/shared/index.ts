@@ -132,3 +132,20 @@ export interface CreatePaymentRequest {
   year: number;
   due_date: string; // ISO Date String
 }
+
+// ==========================================
+// Enrollment
+// ==========================================
+export interface EnrollmentDTO {
+  id: string;
+  member_id: string;
+  sport_id: string;
+  enrollment_date: string;
+  is_active: boolean;
+  deleted_at: string | null;
+}
+
+export interface CreateEnrollmentRequest {
+  member_id: string;
+  sport_id: string;
+}
