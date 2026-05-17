@@ -1,6 +1,8 @@
 import { CreateEquipmentLoanRequest } from '@alentapp/shared';
 import { MemberRepository } from '../MemberRepository.js';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * EquipmentLoanValidator — Servicio de dominio.
  *
@@ -9,9 +11,30 @@ import { MemberRepository } from '../MemberRepository.js';
  *  b) El socio debe tener status === 'Activo'.
  *  c) El socio NO debe tener categoría 'Cadete' (solo Pleno u Honorario permitidos).
  *  d) Si se provee due_date, debe ser una fecha futura.
+ *  e) Los identificadores UUID (memberId, id) deben tener formato válido.
  */
 export class EquipmentLoanValidator {
     constructor(private readonly memberRepository: MemberRepository) {}
+
+    /**
+     * Valida que el memberId recibido como filtro de búsqueda tenga formato UUID válido.
+     * Lanza error de dominio si el formato es inválido.
+     */
+    validateMemberId(memberId: string): void {
+        if (!UUID_REGEX.test(memberId)) {
+            throw new Error('Formato de identificador de socio inválido');
+        }
+    }
+
+    /**
+     * Valida que el id de préstamo tenga formato UUID válido.
+     * Lanza error de dominio si el formato es inválido.
+     */
+    validateId(id: string): void {
+        if (!UUID_REGEX.test(id)) {
+            throw new Error('Formato de identificador de préstamo inválido');
+        }
+    }
 
     async validate(data: CreateEquipmentLoanRequest): Promise<void> {
         // a) El socio debe existir
