@@ -4,6 +4,8 @@ import {
   Center,
   Flex,
   Heading,
+  HStack,
+  Input,
   Spinner,
   Stack,
   Text,
@@ -35,6 +37,11 @@ export function EnrollmentsView() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [enrollmentIdForVigencia, setEnrollmentIdForVigencia] = useState('');
+  const [vigenciaError, setVigenciaError] = useState<string | null>(null);
+  const [vigenciaSuccess, setVigenciaSuccess] = useState<string | null>(null);
+  const [isUpdatingVigencia, setIsUpdatingVigencia] = useState(false);
 
   const memberCollection = useMemo(
     () =>
@@ -89,8 +96,14 @@ export function EnrollmentsView() {
     setSuccessMessage(null);
     setIsSubmitting(true);
     try {
-      await enrollmentsService.create({ member_id: memberId, sport_id: sportId });
-      setSuccessMessage('Inscripción registrada correctamente.');
+      const created = await enrollmentsService.create({
+        member_id: memberId,
+        sport_id: sportId,
+      });
+      setSuccessMessage(
+        `Inscripción registrada correctamente. Podés usar el ID para cambiar vigencia: ${created.id}.`
+      );
+      setEnrollmentIdForVigencia(created.id);
       setMemberId('');
       setSportId('');
     } catch (err: unknown) {
@@ -101,6 +114,33 @@ export function EnrollmentsView() {
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleVigenciaChange = async (is_active: boolean) => {
+    setVigenciaError(null);
+    setVigenciaSuccess(null);
+    const id = enrollmentIdForVigencia.trim();
+    if (!id) {
+      setVigenciaError('Ingresá el identificador de la inscripción.');
+      return;
+    }
+    setIsUpdatingVigencia(true);
+    try {
+      await enrollmentsService.update(id, { is_active });
+      setVigenciaSuccess(
+        is_active
+          ? 'Inscripción activada (vigente). El servidor revalidó cupo y duplicados.'
+          : 'Inscripción desactivada.'
+      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'No se pudo actualizar la vigencia. Intente nuevamente.';
+      setVigenciaError(message);
+    } finally {
+      setIsUpdatingVigencia(false);
     }
   };
 
@@ -218,6 +258,78 @@ export function EnrollmentsView() {
             </Stack>
           </form>
         )}
+      </Box>
+
+      <Box
+        bg="bg.panel"
+        borderRadius="xl"
+        boxShadow="sm"
+        borderWidth="1px"
+        borderColor="border.muted"
+        p={{ base: '6', md: '8' }}
+        maxW="xl"
+      >
+        <Stack gap="4">
+          <Stack gap="1">
+            <Heading size="md">Cambiar vigencia de una inscripción</Heading>
+            <Text color="fg.muted" fontSize="sm">
+              Sin listado de inscripciones (pendiente de otra entrega), podés ingresar un ID
+              conocido —por ejemplo el que devuelve el alta recién arriba— para activar o
+              desactivar solo el flag <code>is_active</code> en el servidor.
+            </Text>
+          </Stack>
+          {vigenciaSuccess ? (
+            <Box
+              bg="green.50"
+              borderWidth="1px"
+              borderColor="green.200"
+              borderRadius="md"
+              p="3"
+            >
+              <Text color="green.700" fontWeight="medium">
+                {vigenciaSuccess}
+              </Text>
+            </Box>
+          ) : null}
+          {vigenciaError ? (
+            <Text color="red.600" fontWeight="medium">
+              {vigenciaError}
+            </Text>
+          ) : null}
+          <Field
+            label="ID de inscripción (UUID)"
+            helperText="Se completa solo al registrar arriba; también podés pegar un ID que ya tengas."
+          >
+            <Input
+              value={enrollmentIdForVigencia}
+              onChange={(e) => setEnrollmentIdForVigencia(e.target.value)}
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              fontFamily="mono"
+              fontSize="sm"
+            />
+          </Field>
+          <HStack gap="3" flexWrap="wrap">
+            <Button
+              type="button"
+              variant="outline"
+              colorPalette="blue"
+              loading={isUpdatingVigencia}
+              disabled={!enrollmentIdForVigencia.trim()}
+              onClick={() => void handleVigenciaChange(false)}
+            >
+              Desactivar (is_active: false)
+            </Button>
+            <Button
+              type="button"
+              colorPalette="blue"
+              loading={isUpdatingVigencia}
+              disabled={!enrollmentIdForVigencia.trim()}
+              onClick={() => void handleVigenciaChange(true)}
+            >
+              Activar (is_active: true)
+            </Button>
+          </HStack>
+        </Stack>
       </Box>
     </Stack>
   );

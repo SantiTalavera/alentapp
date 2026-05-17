@@ -1,5 +1,4 @@
 import { Select as ChakraSelect, createListCollection } from "@chakra-ui/react"
-import * as React from "react"
 
 export const SelectRoot = ChakraSelect.Root
 export const SelectLabel = ChakraSelect.Label

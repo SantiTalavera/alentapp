@@ -36,6 +36,7 @@ import { PaymentController } from './delivery/PaymentController.js';
 import { PostgresEnrollmentRepository } from './infrastructure/PostgresEnrollmentRepository.js';
 import { EnrollmentValidator } from './domain/services/EnrollmentValidator.js';
 import { CreateEnrollmentUseCase } from './application/enrollment/CreateEnrollmentUseCase.js';
+import { UpdateEnrollmentUseCase } from './application/enrollment/UpdateEnrollmentUseCase.js';
 import { EnrollmentController } from './delivery/EnrollmentController.js';
 
 export function buildApp() {
@@ -155,8 +156,13 @@ export function buildApp() {
         enrollmentRepository,
         enrollmentValidator
     );
+    const updateEnrollmentUseCase = new UpdateEnrollmentUseCase(
+        enrollmentRepository,
+        enrollmentValidator
+    );
     const enrollmentController = new EnrollmentController(
-        createEnrollmentUseCase
+        createEnrollmentUseCase,
+        updateEnrollmentUseCase
     );
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
@@ -179,6 +185,10 @@ export function buildApp() {
     server.post(
         '/api/v1/enrollments',
         enrollmentController.create.bind(enrollmentController)
+    );
+    server.patch(
+        '/api/v1/enrollments/:id',
+        enrollmentController.update.bind(enrollmentController)
     );
     server.get('/api/v1/payments', paymentController.getAll.bind(paymentController));
     server.get('/api/v1/payments/:id', paymentController.getById.bind(paymentController));

@@ -149,3 +149,7 @@ export interface CreateEnrollmentRequest {
   member_id: string;
   sport_id: string;
 }
+
+export interface UpdateEnrollmentRequest {
+  is_active?: boolean;
+}
