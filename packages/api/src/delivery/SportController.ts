@@ -4,6 +4,7 @@ import { NewSportUseCase } from '../application/sport/NewSportUseCase.js';
 import { GetSportsUseCase } from '../application/sport/GetSportsUseCase.js';
 import { GetSportByIdUseCase } from '../application/sport/GetSportByIdUseCase.js';
 import { UpdateSportUseCase } from '../application/sport/UpdateSportUseCase.js';
+import { DeleteSportUseCase } from '../application/sport/DeleteSportUseCase.js';
 
 const BAD_REQUEST_MESSAGES = new Set([
     'El nombre del deporte es obligatorio',
@@ -26,6 +27,7 @@ export class SportController {
         private readonly getSportsUseCase: GetSportsUseCase,
         private readonly getSportByIdUseCase: GetSportByIdUseCase,
         private readonly updateSportUseCase: UpdateSportUseCase,
+        private readonly deleteSportUseCase: DeleteSportUseCase,
     ) {}
 
     async create(request: FastifyRequest<{ Body: CreateSportRequest }>, reply: FastifyReply) {
@@ -100,6 +102,29 @@ export class SportController {
 
             if (BAD_REQUEST_MESSAGES.has(message)) {
                 return reply.code(400).send({ error: message });
+            }
+
+            return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
+
+    async delete(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+        try {
+            const sport = await this.deleteSportUseCase.execute(request.params.id);
+            return reply.code(200).send({ data: sport });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error interno, reintente más tarde';
+
+            if (message === 'Identificador de deporte inválido') {
+                return reply.code(400).send({ error: message });
+            }
+
+            if (message === 'Deporte no encontrado') {
+                return reply.code(404).send({ error: message });
+            }
+
+            if (message === 'El deporte ya fue dado de baja') {
+                return reply.code(409).send({ error: message });
             }
 
             return reply.code(500).send({ error: 'Error interno, reintente más tarde' });

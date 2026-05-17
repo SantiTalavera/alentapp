@@ -12,7 +12,7 @@ import {
   Spinner,
   Center,
 } from '@chakra-ui/react';
-import { LuPencil, LuPlus, LuRefreshCw } from 'react-icons/lu';
+import { LuPencil, LuPlus, LuRefreshCw, LuTrash2 } from 'react-icons/lu';
 import { type FormEvent, useEffect, useState } from 'react';
 import type { CreateSportRequest, SportDTO } from '@alentapp/shared';
 import {
@@ -55,6 +55,7 @@ export function SportsView() {
   const [editRequiresCertificate, setEditRequiresCertificate] = useState(false);
   const [editFormError, setEditFormError] = useState<string | null>(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [deletingSportId, setDeletingSportId] = useState<string | null>(null);
 
   const fetchSports = async (options?: { clearSuccess?: boolean }) => {
     if (options?.clearSuccess) {
@@ -130,6 +131,27 @@ export function SportsView() {
       setEditFormError(message);
     } finally {
       setIsEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteSport = async (sport: SportDTO) => {
+    const confirmed = window.confirm(
+      `¿Confirmás la baja del deporte "${sport.name}"? Esta acción no elimina los datos históricos; el deporte dejará de mostrarse en el listado.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingSportId(sport.id);
+    setError(null);
+    try {
+      await sportsService.delete(sport.id);
+      setSuccessMessage('Deporte dado de baja correctamente.');
+      await fetchSports();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'No se pudo dar de baja el deporte. Intente nuevamente.';
+      setError(message);
+    } finally {
+      setDeletingSportId(null);
     }
   };
 
@@ -428,13 +450,26 @@ export function SportsView() {
                       )}
                     </Table.Cell>
                     <Table.Cell textAlign="end">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => openEditModal(sport)}
-                      >
-                        <LuPencil /> Editar
-                      </Button>
+                      <HStack gap="1" justify="flex-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openEditModal(sport)}
+                          disabled={deletingSportId !== null}
+                        >
+                          <LuPencil /> Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          colorPalette="red"
+                          onClick={() => void handleDeleteSport(sport)}
+                          loading={deletingSportId === sport.id}
+                          disabled={deletingSportId !== null && deletingSportId !== sport.id}
+                        >
+                          <LuTrash2 /> Dar de baja
+                        </Button>
+                      </HStack>
                     </Table.Cell>
                   </Table.Row>
                 ))}

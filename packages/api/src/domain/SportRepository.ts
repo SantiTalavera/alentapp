@@ -6,4 +6,5 @@ export interface SportRepository {
     findAll(): Promise<SportDTO[]>;
     findById(id: string): Promise<SportDTO | null>;
     update(id: string, data: UpdateSportRequest): Promise<SportDTO>;
+    softDelete(id: string): Promise<SportDTO>;
 }
