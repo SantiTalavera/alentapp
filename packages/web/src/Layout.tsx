@@ -46,6 +46,8 @@ function Layout() {
                             </Text>
                         </RouterLink>
                         <RouterLink to="/enrollments">
+                          
+                        <RouterLink to="/payments">
                             <Text 
                                 fontWeight="semibold" 
                                 fontSize="sm" 
@@ -55,6 +57,7 @@ function Layout() {
                                 _hover={{ color: "blue.500", textDecoration: "none" }}
                             >
                                 Inscripciones
+                                Pagos
                             </Text>
                         </RouterLink>
                     </HStack>
