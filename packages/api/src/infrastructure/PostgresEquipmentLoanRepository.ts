@@ -42,11 +42,24 @@ export class PostgresEquipmentLoanRepository implements EquipmentLoanRepository 
     }
 
     async findById(id: string): Promise<EquipmentLoanDTO | null> {
-        throw new Error(`findById not implemented yet (id: ${id})`);
+        const row = await prisma.equipmentLoan.findFirst({
+            where: {
+                id,
+                deleted_at: null,
+            },
+        });
+        return row ? this.mapToDTO(row) : null;
     }
 
-    async findAll(): Promise<EquipmentLoanDTO[]> {
-        throw new Error('findAll not implemented yet');
+    async findAll(filters?: { memberId?: string }): Promise<EquipmentLoanDTO[]> {
+        const rows = await prisma.equipmentLoan.findMany({
+            where: {
+                deleted_at: null,
+                ...(filters?.memberId !== undefined && { member_id: filters.memberId }),
+            },
+            orderBy: { loan_date: 'desc' },
+        });
+        return rows.map((row) => this.mapToDTO(row));
     }
 
     async update(
