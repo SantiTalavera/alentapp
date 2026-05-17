@@ -29,6 +29,8 @@ import { MedicalCertificateController } from './delivery/MedicalCertificateContr
 import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
 import { PostgresPaymentRepository } from './infrastructure/PostgresPaymentRepository.js';
 import { CreatePaymentUseCase } from './application/payment/CreatePaymentUseCase.js';
+import { GetPaymentsUseCase } from './application/payment/GetPaymentsUseCase.js';
+import { GetPaymentByIdUseCase } from './application/payment/GetPaymentByIdUseCase.js';
 import { PaymentController } from './delivery/PaymentController.js';
 
 export function buildApp() {
@@ -128,7 +130,13 @@ export function buildApp() {
         paymentRepository,
         memberRepo
     );
-    const paymentController = new PaymentController(createPaymentUseCase);
+    const getPaymentsUseCase = new GetPaymentsUseCase(paymentRepository);
+    const getPaymentByIdUseCase = new GetPaymentByIdUseCase(paymentRepository);
+    const paymentController = new PaymentController(
+        createPaymentUseCase,
+        getPaymentsUseCase,
+        getPaymentByIdUseCase
+    );
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
@@ -146,6 +154,8 @@ export function buildApp() {
     server.get('/api/v1/members/:memberId/medical-certificates', medicalCertificateController.getByMemberId.bind(medicalCertificateController));
     server.get('/api/v1/medical-certificates/:id', medicalCertificateController.getById.bind(medicalCertificateController));
     server.post('/api/v1/payments', paymentController.create.bind(paymentController));
+    server.get('/api/v1/payments', paymentController.getAll.bind(paymentController));
+    server.get('/api/v1/payments/:id', paymentController.getById.bind(paymentController));
 
 
 
