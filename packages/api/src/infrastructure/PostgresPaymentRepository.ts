@@ -26,7 +26,7 @@ type DBPayment = {
 export class PostgresPaymentRepository implements PaymentRepository {
     async findAll(filters?: { memberId?: string, status?: string, month?: number, year?: number }): Promise<PaymentDTO[]> {
         const whereClause: any = {};
-        
+
         if (filters?.memberId) whereClause.member_id = filters.memberId;
         if (filters?.status) whereClause.status = filters.status;
         if (filters?.month !== undefined) whereClause.month = filters.month;
@@ -99,6 +99,14 @@ export class PostgresPaymentRepository implements PaymentRepository {
         const updated = await prisma.payment.update({
             where: { id },
             data: updateData
+        });
+        return this.mapToDTO(updated);
+    }
+
+    async cancel(id: string): Promise<PaymentDTO> {
+        const updated = await prisma.payment.update({
+            where: { id },
+            data: { status: 'Canceled' }
         });
         return this.mapToDTO(updated);
     }

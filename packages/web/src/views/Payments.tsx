@@ -130,6 +130,16 @@ export function PaymentsView() {
     }
   };
 
+  const handleCancel = async (id: string) => {
+    if (!window.confirm("¿Está seguro que desea cancelar este pago?")) return;
+    try {
+      await paymentsService.cancel(id);
+      fetchPayments();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   useEffect(() => {
     fetchMembers();
   }, []);
@@ -263,6 +273,7 @@ export function PaymentsView() {
                 <Table.ColumnHeader>Vencimiento</Table.ColumnHeader>
                 <Table.ColumnHeader>Estado</Table.ColumnHeader>
                 <Table.ColumnHeader textAlign="end">Acciones</Table.ColumnHeader>
+                <Table.ColumnHeader textAlign="end">Acciones</Table.ColumnHeader>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -297,24 +308,29 @@ export function PaymentsView() {
                       </Box>
                     </Table.Cell>
                     <Table.Cell textAlign="end">
-                        <HStack gap="2" justify="flex-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            colorPalette="blue"
-                            onClick={() => openEditDialog(payment)}
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            colorPalette="green"
-                            onClick={() => handleCharge(payment.id)}
-                          >
-                            Cobrar
-                          </Button>
-                        </HStack>
+                      <HStack gap="2" justify="flex-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          colorPalette="blue"
+                          onClick={() => openEditDialog(payment)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          colorPalette="green"
+                          onClick={() => handleCharge(payment.id)}
+                        >
+                          Cobrar
+                        </Button>
+                      </HStack>
+                    </Table.Cell>
+                    <Table.Cell textAlign="end">
+                      <Button size="sm" colorPalette="red" variant="ghost" onClick={() => handleCancel(payment.id)}>
+                        Cancelar
+                      </Button>
                     </Table.Cell>
                   </Table.Row>
                 );
