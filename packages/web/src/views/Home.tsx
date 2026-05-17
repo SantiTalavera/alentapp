@@ -1,5 +1,5 @@
 import { Box, SimpleGrid, Heading, Text, VStack } from "@chakra-ui/react";
-import { LuUsers, LuMedal, LuClipboardPen, LuDumbbell } from "react-icons/lu";
+import { LuUsers, LuMedal, LuClipboardPen, LuDollarSign, LuDumbbell } from "react-icons/lu";
 import { SectionCard } from "../components/SectionCard";
 
 export function HomeView() {
@@ -45,6 +45,13 @@ export function HomeView() {
           icon={LuClipboardPen}
         />
 
+        <SectionCard
+          title="Pagos"
+          description="Consulta el historial de cuotas, modifica vencimientos o registra los pagos efectuados."
+          to="/payments"
+          icon={LuDollarSign}
+         />
+        
         <SectionCard
           title="Préstamos"
           description="Administra los préstamos de equipamiento."

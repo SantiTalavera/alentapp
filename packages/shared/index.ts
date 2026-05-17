@@ -133,6 +133,14 @@ export interface CreatePaymentRequest {
   due_date: string; // ISO Date String
 }
 
+export interface UpdatePaymentRequest {
+  member_id?: never;
+  payment_date?: never;
+  amount?: number;
+  due_date?: string; // ISO Date String
+  status?: 'Paid' | 'Canceled';
+}
+
 // ==========================================
 // Enrollment
 // ==========================================

@@ -32,6 +32,7 @@ import { PostgresPaymentRepository } from './infrastructure/PostgresPaymentRepos
 import { CreatePaymentUseCase } from './application/payment/CreatePaymentUseCase.js';
 import { GetPaymentsUseCase } from './application/payment/GetPaymentsUseCase.js';
 import { GetPaymentByIdUseCase } from './application/payment/GetPaymentByIdUseCase.js';
+import { UpdatePaymentUseCase } from './application/payment/UpdatePaymentUseCase.js';
 import { CancelPaymentUseCase } from './application/payment/CancelPaymentUseCase.js';
 import { PaymentController } from './delivery/PaymentController.js';
 import { PostgresEnrollmentRepository } from './infrastructure/PostgresEnrollmentRepository.js';
@@ -51,12 +52,12 @@ export function buildApp() {
     const server = Fastify({
         logger: {
             level: 'info',
-            transport: process.env.NODE_ENV === 'development' 
-            ? {
-                target: 'pino-pretty',
-                options: { translateTime: 'HH:MM:ss Z', ignore: 'pid,hostname' },
-                } 
-            : undefined,
+            transport: process.env.NODE_ENV === 'development'
+                ? {
+                    target: 'pino-pretty',
+                    options: { translateTime: 'HH:MM:ss Z', ignore: 'pid,hostname' },
+                }
+                : undefined,
         },
     });
 
@@ -69,14 +70,14 @@ export function buildApp() {
 
     const memberRepo = new PostgresMemberRepository();
     const memberValidator = new MemberValidator(memberRepo);
-    
+
     const createMemberUseCase = new CreateMemberUseCase(memberRepo, memberValidator);
     const getMembersUseCase = new GetMembersUseCase(memberRepo);
     const updateMemberUseCase = new UpdateMemberUseCase(memberRepo, memberValidator);
     const deleteMemberUseCase = new DeleteMemberUseCase(memberRepo);
 
     const memberController = new MemberController(
-        createMemberUseCase, 
+        createMemberUseCase,
         getMembersUseCase,
         updateMemberUseCase,
         deleteMemberUseCase
@@ -148,11 +149,13 @@ export function buildApp() {
     );
     const getPaymentsUseCase = new GetPaymentsUseCase(paymentRepository);
     const getPaymentByIdUseCase = new GetPaymentByIdUseCase(paymentRepository);
+    const updatePaymentUseCase = new UpdatePaymentUseCase(paymentRepository);
     const cancelPaymentUseCase = new CancelPaymentUseCase(paymentRepository);
     const paymentController = new PaymentController(
         createPaymentUseCase,
         getPaymentsUseCase,
         getPaymentByIdUseCase,
+        updatePaymentUseCase,
         cancelPaymentUseCase
     );
 
@@ -232,6 +235,7 @@ export function buildApp() {
     );
     server.get('/api/v1/payments', paymentController.getAll.bind(paymentController));
     server.get('/api/v1/payments/:id', paymentController.getById.bind(paymentController));
+    server.patch('/api/v1/payments/:id', paymentController.update.bind(paymentController));
     server.post('/api/v1/loans', equipmentLoanController.create.bind(equipmentLoanController));
     server.delete('/api/v1/payments/:id', paymentController.delete.bind(paymentController));
 

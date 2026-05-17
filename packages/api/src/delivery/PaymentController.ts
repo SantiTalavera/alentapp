@@ -1,8 +1,9 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { CreatePaymentRequest } from '@alentapp/shared';
+import { CreatePaymentRequest, UpdatePaymentRequest } from '@alentapp/shared';
 import { CreatePaymentUseCase } from '../application/payment/CreatePaymentUseCase.js';
 import { GetPaymentsUseCase } from '../application/payment/GetPaymentsUseCase.js';
 import { GetPaymentByIdUseCase } from '../application/payment/GetPaymentByIdUseCase.js';
+import { UpdatePaymentUseCase } from '../application/payment/UpdatePaymentUseCase.js';
 
 import { CancelPaymentUseCase } from '../application/payment/CancelPaymentUseCase.js';
 
@@ -16,7 +17,9 @@ const BAD_REQUEST_MESSAGES = new Set([
     'Mes inválido',
     'Estado de pago no válido',
     'Formato de id de socio inválido',
-    'Formato de id inválido'
+    'Formato de id inválido',
+    'El campo member_id es inmutable',
+    'No se acepta payment_date en el request'
 ]);
 
 export class PaymentController {
@@ -24,8 +27,32 @@ export class PaymentController {
         private readonly createPaymentUseCase: CreatePaymentUseCase,
         private readonly getPaymentsUseCase: GetPaymentsUseCase,
         private readonly getPaymentByIdUseCase: GetPaymentByIdUseCase,
+        private readonly updatePaymentUseCase: UpdatePaymentUseCase,
         private readonly cancelPaymentUseCase: CancelPaymentUseCase
+
     ) { }
+
+    async update(request: FastifyRequest<{ Params: { id: string }, Body: UpdatePaymentRequest }>, reply: FastifyReply) {
+        try {
+            const payment = await this.updatePaymentUseCase.execute(request.params.id, request.body);
+            return reply.code(200).send({ data: payment });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error interno';
+            if (message === 'Pago no encontrado') {
+                return reply.code(404).send({ error: message });
+            }
+            if (message === 'El pago ya fue registrado como pagado') {
+                return reply.code(409).send({ error: message });
+            }
+            if (message === 'Transición de estado no permitida' || message === 'El pago no puede modificarse en su estado actual') {
+                return reply.code(422).send({ error: message });
+            }
+            if (BAD_REQUEST_MESSAGES.has(message)) {
+                return reply.code(400).send({ error: message });
+            }
+            return reply.code(500).send({ error: 'Error interno' });
+        }
+    }
 
     async delete(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
         try {
