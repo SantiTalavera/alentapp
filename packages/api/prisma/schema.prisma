@@ -36,6 +36,7 @@ model Member {
     disciplines         Discipline[]
     medicalCertificates MedicalCertificate[]
     payments            Payment[]
+    enrollments         Enrollment[]
 
     @@map("members") // Para que en la DB la tabla se llame 'members' en minúscula
 }
@@ -62,8 +63,25 @@ model Sport {
     additional_price             Float
     requires_medical_certificate Boolean
     deleted_at                   DateTime?
+    enrollments                  Enrollment[]
 
     @@map("sports")
+}
+
+model Enrollment {
+    id               String    @id @default(uuid())
+    member_id        String
+    sport_id         String
+    enrollment_date  DateTime  @default(now())
+    is_active        Boolean   @default(true)
+    deleted_at       DateTime?
+
+    member Member @relation(fields: [member_id], references: [id], onDelete: Restrict)
+    sport  Sport  @relation(fields: [sport_id], references: [id], onDelete: Restrict)
+
+    @@index([member_id])
+    @@index([sport_id])
+    @@map("enrollments")
 }
 
 model MedicalCertificate {
