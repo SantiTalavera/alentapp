@@ -46,6 +46,8 @@ import { EnrollmentController } from './delivery/EnrollmentController.js';
 import { PostgresEquipmentLoanRepository } from './infrastructure/PostgresEquipmentLoanRepository.js';
 import { EquipmentLoanValidator } from './domain/services/EquipmentLoanValidator.js';
 import { CreateEquipmentLoanUseCase } from './application/loan/CreateEquipmentLoanUseCase.js';
+import { GetEquipmentLoansUseCase } from './application/loan/GetEquipmentLoansUseCase.js';
+import { GetEquipmentLoanByIdUseCase } from './application/loan/GetEquipmentLoanByIdUseCase.js';
 import { EquipmentLoanController } from './delivery/EquipmentLoanController.js';
 
 export function buildApp() {
@@ -194,7 +196,19 @@ export function buildApp() {
         equipmentLoanRepository,
         equipmentLoanValidator
     );
-    const equipmentLoanController = new EquipmentLoanController(createEquipmentLoanUseCase);
+    const getEquipmentLoansUseCase = new GetEquipmentLoansUseCase(
+        equipmentLoanRepository,
+        equipmentLoanValidator
+    );
+    const getEquipmentLoanByIdUseCase = new GetEquipmentLoanByIdUseCase(
+        equipmentLoanRepository,
+        equipmentLoanValidator
+    );
+    const equipmentLoanController = new EquipmentLoanController(
+        createEquipmentLoanUseCase,
+        getEquipmentLoansUseCase,
+        getEquipmentLoanByIdUseCase
+    );
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
     server.post('/api/v1/socios', memberController.create.bind(memberController));
@@ -237,6 +251,8 @@ export function buildApp() {
     server.get('/api/v1/payments/:id', paymentController.getById.bind(paymentController));
     server.patch('/api/v1/payments/:id', paymentController.update.bind(paymentController));
     server.post('/api/v1/loans', equipmentLoanController.create.bind(equipmentLoanController));
+    server.get('/api/v1/loans', equipmentLoanController.getAll.bind(equipmentLoanController));
+    server.get('/api/v1/loans/:id', equipmentLoanController.getById.bind(equipmentLoanController));
     server.delete('/api/v1/payments/:id', paymentController.delete.bind(paymentController));
 
 
