@@ -24,6 +24,34 @@ type DBPayment = {
 };
 
 export class PostgresPaymentRepository implements PaymentRepository {
+    async findAll(filters?: { memberId?: string, status?: string, month?: number, year?: number }): Promise<PaymentDTO[]> {
+        const whereClause: any = {};
+        
+        if (filters?.memberId) whereClause.member_id = filters.memberId;
+        if (filters?.status) whereClause.status = filters.status;
+        if (filters?.month !== undefined) whereClause.month = filters.month;
+        if (filters?.year !== undefined) whereClause.year = filters.year;
+
+        const payments = await prisma.payment.findMany({
+            where: whereClause,
+            orderBy: [
+                { year: 'desc' },
+                { month: 'desc' }
+            ]
+        });
+
+        return payments.map(p => this.mapToDTO(p));
+    }
+
+    async findById(id: string): Promise<PaymentDTO | null> {
+        const payment = await prisma.payment.findUnique({
+            where: { id }
+        });
+
+        if (!payment) return null;
+        return this.mapToDTO(payment);
+    }
+
     async findByPeriod(member_id: string, month: number, year: number): Promise<PaymentDTO | null> {
         const row = await prisma.payment.findUnique({
             where: {
