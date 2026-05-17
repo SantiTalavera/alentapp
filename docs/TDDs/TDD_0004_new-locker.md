@@ -24,7 +24,7 @@ El club necesita llevar un registro ordenado de sus casilleros físicos. Esta fu
 - El campo `number` es obligatorio y debe ser un entero mayor a cero.
 - El campo `location` es obligatorio.
 - No puede registrarse un casillero si ya existe otro con el mismo `number`.
-- Todo casillero recién creado debe tener `status: "Available"` e `is_active: true` de forma automática, sin que el usuario los especifique.
+- Todo casillero recién creado debe tener `status: "Available"`, `is_active: true` y `member_id: null` de forma automática, sin que el usuario los especifique.
 - Ante un número duplicado, el sistema debe devolver un error descriptivo sin persistir nada.
 
 ## Diseño Técnico (RFC)
@@ -39,6 +39,7 @@ Entidad involucrada: `Locker`.
 | `number`    | Int     | Número del casillero. Único y mayor a cero               |
 | `location`  | String  | Descripción de la ubicación física dentro del club       |
 | `status`    | String  | Estado operativo. Se inicializa siempre en `Available`   |
+| `member_id` | UUID    | Socio asignado. Se inicializa siempre en `null`         |
 | `is_active` | Boolean | Indica si el casillero está activo. Por defecto `true`   |
 
 Valores válidos para `status`: `Available`, `Occupied`, `Maintenance`.
@@ -62,7 +63,8 @@ Valores válidos para `status`: `Available`, `Occupied`, `Maintenance`.
     "id": string;
     "number": number;
     "location": string;
-    "status": "Available" | "Occupied" | "Maintenance";
+    "status": "Available";
+    "member_id": null;
     "is_active": boolean;
   }
 }
