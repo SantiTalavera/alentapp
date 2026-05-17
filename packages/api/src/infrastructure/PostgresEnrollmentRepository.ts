@@ -49,14 +49,14 @@ export class PostgresEnrollmentRepository implements EnrollmentRepository {
         const rows = await prisma.enrollment.findMany({
             where: {
                 deleted_at: null,
-                ...(filters?.member_id !== undefined && {
-                    member_id: filters.member_id,
+                ...(filters?.memberId !== undefined && {
+                    member_id: filters.memberId,
                 }),
-                ...(filters?.sport_id !== undefined && {
-                    sport_id: filters.sport_id,
+                ...(filters?.sportId !== undefined && {
+                    sport_id: filters.sportId,
                 }),
-                ...(filters?.is_active !== undefined && {
-                    is_active: filters.is_active,
+                ...(filters?.isActive !== undefined && {
+                    is_active: filters.isActive,
                 }),
             },
             orderBy: { enrollment_date: 'desc' },
