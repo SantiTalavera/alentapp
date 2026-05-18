@@ -1,5 +1,5 @@
 import { Box, SimpleGrid, Heading, Text, VStack } from "@chakra-ui/react";
-import { LuArchive, LuBan, LuClipboardPen, LuDollarSign, LuDumbbell, LuMedal, LuUsers } from "react-icons/lu";
+import { LuArchive, LuBan, LuClipboardPen, LuDollarSign, LuDumbbell, LuFileCheck, LuMedal, LuUsers } from "react-icons/lu";
 import { SectionCard } from "../components/SectionCard";
 
 export function HomeView() {
@@ -71,6 +71,13 @@ export function HomeView() {
           description="Consulta el historial disciplinario de socios y elimina sanciones cargadas por error."
           to="/disciplines"
           icon={LuBan}
+        />
+
+        <SectionCard
+          title="Certificados"
+          description="Consultá el historial de aptos médicos de un socio y eliminá certificados cargados por error."
+          to="/medical-certificates"
+          icon={LuFileCheck}
         />
 
         {/* Future sections can be added here following the same pattern */}
