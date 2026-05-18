@@ -37,7 +37,7 @@ export class PostgresDisciplineRepository implements DisciplineRepository {
         return this.mapToDTO(created);
     }
 
-    async findById(id: string): Promise<DisciplineDTO | null> {
+async findById(id: string): Promise<DisciplineDTO | null> {
         const discipline = await prisma.discipline.findUnique({
             where: { id },
         });
@@ -68,6 +68,8 @@ export class PostgresDisciplineRepository implements DisciplineRepository {
 
         return disciplines.map((discipline) => this.mapToDTO(discipline));
     }
+
+
 
     async update(
         id: string,

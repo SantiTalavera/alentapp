@@ -14,4 +14,6 @@ export interface DisciplineRepository {
     memberId: string,
     memberStatus: MemberStatus
   ): Promise<DisciplineDTO>;
+  findById(id: string): Promise<DisciplineDTO | null>;
+  findActiveTotalSuspensionsByMemberId(memberId: string, referenceDate?: Date): Promise<DisciplineDTO[]>;
 }
