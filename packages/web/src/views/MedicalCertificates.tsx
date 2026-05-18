@@ -50,7 +50,8 @@ function getCertStatus(cert: MedicalCertificateDTO): {
 
 function formatDate(value: string): string {
   // Add a fake time to ensure it parses as local date correctly across timezones
-  return new Date(value + 'T12:00:00Z').toLocaleDateString();
+  const datePart = value.includes('T') ? value.split('T')[0] : value;
+  return new Date(datePart + 'T12:00:00Z').toLocaleDateString();
 }
 
 export function MedicalCertificatesView() {
@@ -67,8 +68,7 @@ export function MedicalCertificatesView() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCertId, setEditingCertId] = useState<string | null>(null);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
-  const [editFormData, setEditFormData] = useState<CreateMedicalCertificateRequest>({
-    member_id: "",
+  const [editFormData, setEditFormData] = useState<Omit<CreateMedicalCertificateRequest, 'member_id'>>({
     issue_date: "",
     expiry_date: "",
     doctor_license: "",
@@ -173,7 +173,6 @@ export function MedicalCertificatesView() {
   const handleOpenEdit = (cert: MedicalCertificateDTO) => {
     setEditingCertId(cert.id);
     setEditFormData({
-      member_id: cert.member_id,
       issue_date: cert.issue_date.split('T')[0],
       expiry_date: cert.expiry_date.split('T')[0],
       doctor_license: cert.doctor_license,
