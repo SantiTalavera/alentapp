@@ -118,6 +118,29 @@ export class PostgresDisciplineRepository implements DisciplineRepository {
             return this.mapToDTO(updated);
         });
     }
+
+    async delete(id: string): Promise<void> {
+        await prisma.discipline.delete({
+            where: { id },
+        });
+    }
+
+    async deleteWithMemberStatus(
+        id: string,
+        memberId: string,
+        memberStatus: MemberStatus
+    ): Promise<void> {
+        await prisma.$transaction(async (tx) => {
+            await tx.discipline.delete({
+                where: { id },
+            });
+
+            await tx.member.update({
+                where: { id: memberId },
+                data: { status: memberStatus },
+            });
+        });
+    }
     
     //Se agrega este metodo helper para construir el objeto de actualizacion, 
     //permitiendo que solo se actualicen los campos que se enviaron
