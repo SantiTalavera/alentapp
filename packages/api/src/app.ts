@@ -48,6 +48,7 @@ import { EquipmentLoanValidator } from './domain/services/EquipmentLoanValidator
 import { CreateEquipmentLoanUseCase } from './application/loan/CreateEquipmentLoanUseCase.js';
 import { GetEquipmentLoansUseCase } from './application/loan/GetEquipmentLoansUseCase.js';
 import { GetEquipmentLoanByIdUseCase } from './application/loan/GetEquipmentLoanByIdUseCase.js';
+import { UpdateEquipmentLoanUseCase } from './application/loan/UpdateEquipmentLoanUseCase.js';
 import { EquipmentLoanController } from './delivery/EquipmentLoanController.js';
 
 export function buildApp() {
@@ -204,10 +205,15 @@ export function buildApp() {
         equipmentLoanRepository,
         equipmentLoanValidator
     );
+    const updateEquipmentLoanUseCase = new UpdateEquipmentLoanUseCase(
+        equipmentLoanRepository,
+        equipmentLoanValidator
+    );
     const equipmentLoanController = new EquipmentLoanController(
         createEquipmentLoanUseCase,
         getEquipmentLoansUseCase,
-        getEquipmentLoanByIdUseCase
+        getEquipmentLoanByIdUseCase,
+        updateEquipmentLoanUseCase
     );
 
     server.get('/api/v1/socios', memberController.getAll.bind(memberController));
@@ -253,6 +259,7 @@ export function buildApp() {
     server.post('/api/v1/loans', equipmentLoanController.create.bind(equipmentLoanController));
     server.get('/api/v1/loans', equipmentLoanController.getAll.bind(equipmentLoanController));
     server.get('/api/v1/loans/:id', equipmentLoanController.getById.bind(equipmentLoanController));
+    server.patch('/api/v1/loans/:id', equipmentLoanController.update.bind(equipmentLoanController));
     server.delete('/api/v1/payments/:id', paymentController.delete.bind(paymentController));
 
 
