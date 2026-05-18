@@ -133,3 +133,20 @@ model EquipmentLoan {
     @@index([member_id])
     @@map("equipment_loans")
 }
+
+enum LockerStatus {
+    Available
+    Occupied
+    Maintenance
+}
+
+model Locker {
+    id        String       @id @default(uuid())
+    number    Int          @unique
+    location  String
+    status    LockerStatus @default(Available)
+    member_id String?
+    is_active Boolean      @default(true)
+
+    @@map("lockers")
+}

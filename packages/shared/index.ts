@@ -32,6 +32,25 @@ export interface UpdateMemberRequest {
   status?: MemberStatus;
 }
 
+// ==========================================
+// Locker
+// ==========================================
+export type LockerStatus = 'Available' | 'Occupied' | 'Maintenance';
+
+export interface LockerDTO {
+  id: string;
+  number: number;
+  location: string;
+  status: LockerStatus;
+  member_id: string | null;
+  is_active: boolean;
+}
+
+export interface CreateLockerRequest {
+  number: number;
+  location: string;
+}
+
 export type DisciplineDTO = {
   id: string;
   member_id: string;
