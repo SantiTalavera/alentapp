@@ -182,3 +182,8 @@ export interface CreateEquipmentLoanRequest {
   due_date?: string; // ISO Date String (opcional)
   member_id: string; // UUID
 }
+
+export interface UpdateEquipmentLoanRequest {
+  status?: LoanStatus;
+  due_date?: string; // ISO Date String
+}

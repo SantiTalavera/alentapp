@@ -1,4 +1,4 @@
-import { CreateEquipmentLoanRequest } from '@alentapp/shared';
+import { CreateEquipmentLoanRequest, LoanStatus } from '@alentapp/shared';
 import { MemberRepository } from '../MemberRepository.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -64,6 +64,16 @@ export class EquipmentLoanValidator {
             if (due <= new Date()) {
                 throw new Error('La fecha de devolución debe ser una fecha futura');
             }
+        }
+    }
+
+    /**
+     * Valida la transición de estados de un préstamo.
+     * Regla de negocio: Si el préstamo ya está devuelto o dañado, no se puede modificar.
+     */
+    validateStatusTransition(currentStatus: LoanStatus, newStatus: LoanStatus): void {
+        if (currentStatus === 'Devuelto' || currentStatus === 'Dañado') {
+            throw new Error('El préstamo ya se encuentra en un estado terminal y no puede ser modificado');
         }
     }
 }

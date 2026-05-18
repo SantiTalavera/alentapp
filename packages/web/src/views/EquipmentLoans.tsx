@@ -66,6 +66,14 @@ export function EquipmentLoansView() {
   const [formError, setFormError] = useState<string | null>(null);
   const [successLoan, setSuccessLoan] = useState<EquipmentLoanDTO | null>(null);
 
+  // ── Edición de fecha de devolución ──────────────────────────────
+  const [editingLoanId, setEditingLoanId] = useState<string | null>(null);
+  const [editingDueDate, setEditingDueDate] = useState<string>('');
+
+  // ── Confirmación de estado ──────────────────────────────
+  const [confirmingLoanId, setConfirmingLoanId] = useState<string | null>(null);
+  const [confirmingStatus, setConfirmingStatus] = useState<LoanStatus | null>(null);
+
   // ── Listado de préstamos ────────────────────────────────────────
   const [loans, setLoans] = useState<EquipmentLoanDTO[]>([]);
   const [loansLoading, setLoansLoading] = useState(false);
@@ -161,6 +169,30 @@ export function EquipmentLoansView() {
     setDueDate('');
     setFormError(null);
     setSuccessLoan(null);
+  };
+
+  const handleUpdateStatus = async (loanId: string, newStatus: LoanStatus) => {
+    try {
+      const updated = await loansService.update(loanId, { status: newStatus });
+      setLoans((prev) => prev.map((l) => (l.id === loanId ? updated : l)));
+      setConfirmingLoanId(null);
+      setConfirmingStatus(null);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Error al actualizar el préstamo');
+    }
+  };
+
+  const handleUpdateDueDate = async (loanId: string) => {
+    if (!editingDueDate) return;
+    try {
+      const due_date = new Date(editingDueDate + 'T12:00:00').toISOString();
+      const updated = await loansService.update(loanId, { due_date });
+      setLoans((prev) => prev.map((l) => (l.id === loanId ? updated : l)));
+      setEditingLoanId(null);
+      setEditingDueDate('');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Error al actualizar la fecha');
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -481,6 +513,9 @@ export function EquipmentLoansView() {
                     <Table.ColumnHeader fontWeight="semibold" fontSize="xs" textTransform="uppercase" letterSpacing="wide" py="3" px="4">
                       Devolución
                     </Table.ColumnHeader>
+                    <Table.ColumnHeader fontWeight="semibold" fontSize="xs" textTransform="uppercase" letterSpacing="wide" py="3" px="4">
+                      Acciones
+                    </Table.ColumnHeader>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -509,7 +544,63 @@ export function EquipmentLoansView() {
                         {formatDate(loan.loan_date)}
                       </Table.Cell>
                       <Table.Cell py="3" px="4" fontSize="sm" color="fg.muted">
-                        {formatDate(loan.due_date)}
+                        {editingLoanId === loan.id ? (
+                          <Input 
+                            type="date" 
+                            size="xs"
+                            value={editingDueDate}
+                            onChange={(e) => setEditingDueDate(e.target.value)}
+                          />
+                        ) : (
+                          formatDate(loan.due_date)
+                        )}
+                      </Table.Cell>
+                      <Table.Cell py="3" px="4">
+                        {editingLoanId === loan.id ? (
+                          <HStack gap="2">
+                            <Button size="xs" colorPalette="teal" variant="surface" disabled={!editingDueDate} onClick={() => void handleUpdateDueDate(loan.id)}>
+                              Guardar
+                            </Button>
+                            <Button size="xs" variant="ghost" onClick={() => setEditingLoanId(null)}>
+                              Cancelar
+                            </Button>
+                          </HStack>
+                        ) : confirmingLoanId === loan.id ? (
+                          <HStack gap="2">
+                            <Text fontSize="xs" fontWeight="bold" color="fg.muted">
+                              ¿Marcar como {confirmingStatus}?
+                            </Text>
+                            <Button size="xs" colorPalette={confirmingStatus === 'Devuelto' ? 'green' : 'red'} variant="solid" onClick={() => void handleUpdateStatus(loan.id, confirmingStatus!)}>
+                              Confirmar
+                            </Button>
+                            <Button size="xs" variant="ghost" onClick={() => setConfirmingLoanId(null)}>
+                              Cancelar
+                            </Button>
+                          </HStack>
+                        ) : (
+                          loan.status === 'Prestado' && (
+                            <HStack gap="2">
+                              <Button size="xs" colorPalette="blue" variant="surface" onClick={() => {
+                                setEditingLoanId(loan.id);
+                                setEditingDueDate(loan.due_date ? loan.due_date.split('T')[0] : '');
+                              }}>
+                                Modificar Fecha
+                              </Button>
+                              <Button size="xs" colorPalette="green" variant="surface" onClick={() => {
+                                setConfirmingLoanId(loan.id);
+                                setConfirmingStatus('Devuelto');
+                              }}>
+                                Devuelto
+                              </Button>
+                              <Button size="xs" colorPalette="red" variant="surface" onClick={() => {
+                                setConfirmingLoanId(loan.id);
+                                setConfirmingStatus('Dañado');
+                              }}>
+                                Dañado
+                              </Button>
+                            </HStack>
+                          )
+                        )}
                       </Table.Cell>
                     </Table.Row>
                   ))}
