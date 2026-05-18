@@ -23,6 +23,7 @@ import { SportController } from './delivery/SportController.js';
 import { PostgresLockerRepository } from './infrastructure/PostgresLockerRepository.js';
 import { LockerValidator } from './domain/services/LockerValidator.js';
 import { NewLockerUseCase } from './application/locker/NewLockerUseCase.js';
+import { UpdateLockerUseCase } from './application/locker/UpdateLockerUseCase.js';
 import { LockerController } from './delivery/LockerController.js';
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
 import { CreateMedicalCertificateUseCase } from './application/medical-certificate/CreateMedicalCertificateUseCase.js';
@@ -125,7 +126,8 @@ export function buildApp() {
     const lockerRepository = new PostgresLockerRepository();
     const lockerValidator = new LockerValidator();
     const newLockerUseCase = new NewLockerUseCase(lockerRepository, lockerValidator);
-    const lockerController = new LockerController(newLockerUseCase);
+    const updateLockerUseCase = new UpdateLockerUseCase(lockerRepository, lockerValidator);
+    const lockerController = new LockerController(newLockerUseCase, updateLockerUseCase);
 
     const medicalCertificateRepository = new PostgresMedicalCertificateRepository();
     const medicalCertificateValidator = new MedicalCertificateValidator();
@@ -241,6 +243,7 @@ export function buildApp() {
     server.delete('/api/v1/sports/:id', sportController.delete.bind(sportController));
     server.post('/api/v1/sports', sportController.create.bind(sportController));
     server.post('/api/v1/lockers', lockerController.create.bind(lockerController));
+    server.patch('/api/v1/lockers/:id', lockerController.update.bind(lockerController));
     server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
     server.patch('/api/v1/medical-certificates/:id', medicalCertificateController.update.bind(medicalCertificateController));
