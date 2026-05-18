@@ -9,7 +9,7 @@ function isValidUuid(value: string): boolean {
     return UUID_REGEX.test(value.trim());
 }
 
-export class GetDisciplinesByMemberUseCase {
+export class GetDisciplineByMemberIdUseCase {
     constructor(
         private readonly disciplineRepository: DisciplineRepository,
         private readonly memberRepository: MemberRepository

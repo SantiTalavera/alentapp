@@ -10,6 +10,8 @@ import { MemberController } from './delivery/MemberController.js';
 import { DisciplineController } from './delivery/DisciplineController.js';
 import { NewDisciplineUseCase } from './application/discipline/NewDisciplineUseCase.js';
 import { UpdateDisciplineUseCase } from './application/discipline/UpdateDisciplineUseCase.js';
+import { GetDisciplineByIdUseCase } from './application/discipline/GetDisciplineByIdUseCase.js';
+import { GetDisciplineByMemberIdUseCase } from './application/discipline/GetDisciplineByMemberIdUseCase.js';
 import { DisciplineValidator } from './domain/services/DisciplineValidator.js';
 import { PostgresDisciplineRepository } from './infrastructure/PostgresDisciplineRepository.js';
 import { PostgresSportRepository } from './infrastructure/PostgresSportRepository.js';
@@ -107,8 +109,20 @@ export function buildApp() {
         memberRepo,
         disciplineValidator
     );
+    const getDisciplineByIdUseCase = new GetDisciplineByIdUseCase(
+        disciplineRepository
+    );
+    const getDisciplineByMemberIdUseCase = new GetDisciplineByMemberIdUseCase(
+        disciplineRepository,
+        memberRepo
+    );
 
-    const disciplineController = new DisciplineController(newDisciplineUseCase, updateDisciplineUseCase);
+    const disciplineController = new DisciplineController(
+        newDisciplineUseCase,
+        updateDisciplineUseCase,
+        getDisciplineByIdUseCase,
+        getDisciplineByMemberIdUseCase
+    );
 
 
     const sportRepository = new PostgresSportRepository();
@@ -243,6 +257,8 @@ export function buildApp() {
     server.put('/api/v1/socios/:id', memberController.update.bind(memberController));
     server.delete('/api/v1/socios/:id', memberController.delete.bind(memberController));
     server.post('/api/v1/disciplines', disciplineController.create.bind(disciplineController));
+    server.get('/api/v1/members/:memberId/disciplines', disciplineController.getByMemberId.bind(disciplineController));
+    server.get('/api/v1/disciplines/:id', disciplineController.getById.bind(disciplineController));
     server.get('/api/v1/sports', sportController.getAll.bind(sportController));
     server.get('/api/v1/sports/:id', sportController.getById.bind(sportController));
     server.patch('/api/v1/sports/:id', sportController.update.bind(sportController));

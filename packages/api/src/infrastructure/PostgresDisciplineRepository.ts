@@ -37,12 +37,25 @@ export class PostgresDisciplineRepository implements DisciplineRepository {
         return this.mapToDTO(created);
     }
 
-async findById(id: string): Promise<DisciplineDTO | null> {
+    async findById(id: string): Promise<DisciplineDTO | null> {
         const discipline = await prisma.discipline.findUnique({
             where: { id },
         });
 
         return discipline ? this.mapToDTO(discipline) : null;
+    }
+
+    async findByMemberId(memberId: string): Promise<DisciplineDTO[]> {
+        const disciplines = await prisma.discipline.findMany({
+            where: {
+                member_id: memberId,
+            },
+            orderBy: {
+                start_date: 'desc',
+            },
+        });
+
+        return disciplines.map((discipline) => this.mapToDTO(discipline));
     }
 
 
