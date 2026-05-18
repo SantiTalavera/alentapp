@@ -102,7 +102,7 @@ export function LockersView() {
       items: [
         { label: 'Sin socio asignado', value: '__none__' },
         ...members.map((m) => ({
-          label: `${m.name} ${m.lastName} — DNI ${m.dni}`,
+          label: `${m.name} — DNI ${m.dni}`,
           value: m.id,
         })),
       ],
@@ -254,7 +254,7 @@ export function LockersView() {
   const memberLabel = (memberId: string | null) => {
     if (!memberId) return 'Sin socio asignado';
     const m = members.find((x) => x.id === memberId);
-    return m ? `${m.name} ${m.lastName}` : memberId;
+    return m ? m.name : memberId;
   };
 
   return (

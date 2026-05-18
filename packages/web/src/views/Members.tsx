@@ -6,19 +6,21 @@ import {
   IconButton, 
   Stack, 
   Text, 
-  Box,
-  Flex,
-  Spinner,
-  Center,
-  Input
+  Box, 
+  Flex, 
+  Spinner, 
+  Center, 
+  Input,
+  SelectPositioner
 } from "@chakra-ui/react";
-import { LuPlus, LuPencil, LuTrash2, LuRefreshCw, LuBan, LuFileText, LuDollarSign } from "react-icons/lu";
-import { useEffect, useState } from "react";
+import { LuPlus, LuPencil, LuTrash2, LuRefreshCw, LuBan, LuFileText, LuDollarSign, LuLock } from "react-icons/lu";
+import { useEffect, useState, useMemo } from "react";
 import { membersService } from "../services/members";
 import { disciplinesService } from "../services/disciplines";
 import { medicalCertificatesService } from "../services/medicalCertificates";
 import { paymentsService } from "../services/payments";
-import type { MemberDTO, CreateMemberRequest, UpdateMemberRequest, MemberCategory, MemberStatus, CreateDisciplineRequest, CreateMedicalCertificateRequest, CreatePaymentRequest } from "@alentapp/shared";
+import { lockersService } from "../services/lockers";
+import type { MemberDTO, CreateMemberRequest, UpdateMemberRequest, MemberCategory, MemberStatus, CreateDisciplineRequest, CreateMedicalCertificateRequest, CreatePaymentRequest, LockerDTO } from "@alentapp/shared";
 import { 
   DialogRoot, 
   DialogContent, 
@@ -108,6 +110,30 @@ export function MembersView() {
     due_date: "",
   });
 
+  // Locker state
+  const [isLockerDialogOpen, setIsLockerDialogOpen] = useState(false);
+  const [selectedMemberForLocker, setSelectedMemberForLocker] = useState<MemberDTO | null>(null);
+  const [lockers, setLockers] = useState<LockerDTO[]>([]);
+  const [selectedLockerId, setSelectedLockerId] = useState<string>('__none__');
+  const [isLoadingLockers, setIsLoadingLockers] = useState(false);
+  const [isSubmittingLocker, setIsSubmittingLocker] = useState(false);
+  const [lockerError, setLockerError] = useState<string | null>(null);
+
+  const memberLockersCollection = useMemo(() => {
+    const availableLockers = lockers.filter(
+      (l) => l.status === 'Available' || l.member_id === selectedMemberForLocker?.id
+    );
+    return createListCollection({
+      items: [
+        { label: 'Sin casillero asignado', value: '__none__' },
+        ...availableLockers.map((l) => ({
+          label: `Casillero #${l.number} — ${l.location}${l.member_id === selectedMemberForLocker?.id ? ' (Actual)' : ''}`,
+          value: l.id,
+        })),
+      ],
+    });
+  }, [lockers, selectedMemberForLocker]);
+
   const fetchMembers = async () => {
     setIsLoading(true);
     setError(null);
@@ -174,6 +200,65 @@ export function MembersView() {
       due_date: "",
     });
     setIsPaymentDialogOpen(true);
+  };
+
+  const openLockerModal = async (member: MemberDTO) => {
+    setSelectedMemberForLocker(member);
+    setIsLockerDialogOpen(true);
+    setIsLoadingLockers(true);
+    setLockerError(null);
+    try {
+      const data = await lockersService.getAll();
+      setLockers(data);
+      // Find locker currently assigned to this member
+      const current = data.find((l) => l.member_id === member.id);
+      setSelectedLockerId(current ? current.id : '__none__');
+    } catch (err: any) {
+      setLockerError(err.message || 'Error al cargar los casilleros');
+    } finally {
+      setIsLoadingLockers(false);
+    }
+  };
+
+  const handleLockerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMemberForLocker) return;
+    setIsSubmittingLocker(true);
+    setLockerError(null);
+    try {
+      const currentAssignedLocker = lockers.find((l) => l.member_id === selectedMemberForLocker.id);
+
+      // Case 1: If changing or removing a previously assigned locker
+      if (currentAssignedLocker && currentAssignedLocker.id !== selectedLockerId) {
+        await lockersService.update(currentAssignedLocker.id, {
+          number: currentAssignedLocker.number,
+          location: currentAssignedLocker.location,
+          status: 'Available',
+          member_id: null,
+        });
+      }
+
+      // Case 2: Assigning a new locker
+      if (selectedLockerId !== '__none__') {
+        const newLocker = lockers.find((l) => l.id === selectedLockerId);
+        if (newLocker) {
+          await lockersService.update(newLocker.id, {
+            number: newLocker.number,
+            location: newLocker.location,
+            status: 'Occupied',
+            member_id: selectedMemberForLocker.id,
+          });
+        }
+      }
+
+      alert('Casillero asignado correctamente.');
+      setIsLockerDialogOpen(false);
+      setSelectedMemberForLocker(null);
+    } catch (err: any) {
+      setLockerError(err.message || 'Error al actualizar el casillero');
+    } finally {
+      setIsSubmittingLocker(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -488,6 +573,16 @@ export function MembersView() {
                       >
                         <LuBan />
                       </IconButton>
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        colorPalette="cyan"
+                        aria-label="Gestionar casillero"
+                        title="Gestionar casillero"
+                        onClick={() => void openLockerModal(member)}
+                      >
+                        <LuLock />
+                      </IconButton>
                       <IconButton 
                         variant="ghost" 
                         size="sm" 
@@ -700,6 +795,74 @@ export function MembersView() {
           </DialogActionTrigger>
           <Button type="submit" colorPalette="blue" loading={isSubmittingPayment}>
             Registrar Pago
+          </Button>
+        </DialogFooter>
+        <DialogCloseTrigger />
+      </form>
+    </DialogContent>
+  </DialogRoot>
+
+  <DialogRoot open={isLockerDialogOpen} onOpenChange={(e) => { if (!e.open) { setIsLockerDialogOpen(false); setSelectedMemberForLocker(null); } }}>
+    <DialogContent bg="gray.900" border="1px solid" borderColor="gray.850">
+      <form onSubmit={(e) => void handleLockerSubmit(e)}>
+        <DialogHeader>
+          <DialogTitle color="white">
+            Asignar Casillero
+            {selectedMemberForLocker ? ` - ${selectedMemberForLocker.name}` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          {lockerError ? (
+            <Box p="3" bg="red.50" color="red.700" borderRadius="md" mb="4">
+              <Text fontSize="sm">{lockerError}</Text>
+            </Box>
+          ) : null}
+
+          {isLoadingLockers ? (
+            <Center py="8">
+              <Spinner size="lg" color="blue.500" />
+            </Center>
+          ) : (
+            <Stack gap="4">
+              <Field 
+                label="Casillero" 
+                required
+                helperText={lockers.length === 0 ? "No hay casilleros registrados en el sistema. Registra uno en la pestaña de Casilleros." : undefined}
+              >
+                <SelectRoot
+                  collection={memberLockersCollection}
+                  value={[selectedLockerId]}
+                  onValueChange={(ev) => setSelectedLockerId(ev.value[0] ?? '__none__')}
+                  positioning={{ sameWidth: true, placement: 'bottom-start', flip: false, gutter: 4 }}
+                >
+                  <SelectTrigger>
+                    <SelectValueText placeholder="Sin casillero asignado" />
+                  </SelectTrigger>
+                  <SelectPositioner zIndex="dropdown">
+                    <SelectContent bg="gray.900" maxH="200px">
+                      {memberLockersCollection.items.map((item) => (
+                        <SelectItem item={item} key={item.value} _hover={{ bg: "gray.800" }}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </SelectPositioner>
+                </SelectRoot>
+              </Field>
+            </Stack>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <DialogActionTrigger asChild>
+            <Button variant="outline" colorPalette="gray">Cancelar</Button>
+          </DialogActionTrigger>
+          <Button
+            type="submit"
+            colorPalette="blue"
+            loading={isSubmittingLocker}
+            disabled={isLoadingLockers}
+          >
+            Guardar
           </Button>
         </DialogFooter>
         <DialogCloseTrigger />
