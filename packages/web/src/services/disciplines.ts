@@ -1,4 +1,4 @@
-import type { CreateDisciplineRequest, DisciplineDTO } from '@alentapp/shared';
+import type { CreateDisciplineRequest, DisciplineDTO, UpdateDisciplineRequest } from '@alentapp/shared';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/v1';
 
@@ -13,8 +13,26 @@ export const disciplinesService = {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || 'Error al registrar la disciplina');
+    }
+
+    const result = await response.json();
+    return result.data;
+  },
+
+  async update(id: string, data: UpdateDisciplineRequest): Promise<DisciplineDTO> {
+    const response = await fetch(`${API_URL}/disciplines/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Error al actualizar la disciplina');
     }
 
     const result = await response.json();
