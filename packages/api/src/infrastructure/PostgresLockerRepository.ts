@@ -62,6 +62,35 @@ export class PostgresLockerRepository implements LockerRepository {
         return this.mapToDTO(updated as DBLocker);
     }
 
+    async deactivate(id: string): Promise<LockerDTO> {
+        const updated = await prisma.locker.update({
+            where: { id },
+            data: {
+                is_active: false,
+            },
+        });
+        return this.mapToDTO(updated as DBLocker);
+    }
+
+    async findAll(filters?: { status?: string }): Promise<LockerDTO[]> {
+        const whereClause: any = {
+            is_active: true,
+        };
+
+        if (filters?.status) {
+            whereClause.status = filters.status;
+        }
+
+        const rows = await prisma.locker.findMany({
+            where: whereClause,
+            orderBy: {
+                number: 'asc',
+            },
+        });
+
+        return rows.map(row => this.mapToDTO(row as DBLocker));
+    }
+
     private mapToDTO(row: DBLocker): LockerDTO {
         return {
             id: row.id,
