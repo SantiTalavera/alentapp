@@ -64,9 +64,16 @@ export class PostgresEquipmentLoanRepository implements EquipmentLoanRepository 
 
     async update(
         id: string,
-        _data: Partial<Pick<EquipmentLoanDTO, 'status' | 'due_date'>>,
+        data: Partial<Pick<EquipmentLoanDTO, 'status' | 'due_date'>>,
     ): Promise<EquipmentLoanDTO> {
-        throw new Error(`update not implemented yet (id: ${id})`);
+        const row = await prisma.equipmentLoan.update({
+            where: { id },
+            data: {
+                ...(data.status && { status: data.status as PrismaLoanStatus }),
+                ...(data.due_date !== undefined && { due_date: data.due_date ? new Date(data.due_date) : null }),
+            },
+        });
+        return this.mapToDTO(row);
     }
 
     async softDelete(id: string): Promise<EquipmentLoanDTO> {
