@@ -77,7 +77,11 @@ export class PostgresEquipmentLoanRepository implements EquipmentLoanRepository 
     }
 
     async softDelete(id: string): Promise<EquipmentLoanDTO> {
-        throw new Error(`softDelete not implemented yet (id: ${id})`);
+        const row = await prisma.equipmentLoan.update({
+            where: { id },
+            data: { deleted_at: new Date() },
+        });
+        return this.mapToDTO(row);
     }
 
     private mapToDTO(row: DBEquipmentLoan): EquipmentLoanDTO {

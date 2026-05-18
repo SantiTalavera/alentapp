@@ -23,7 +23,7 @@ import {
   SelectItem,
   SelectLabel,
 } from '../components/ui/select';
-import { LuPackage, LuRefreshCw, LuSearch, LuX, LuList } from 'react-icons/lu';
+import { LuPackage, LuRefreshCw, LuSearch, LuX, LuList, LuTrash2 } from 'react-icons/lu';
 import type { EquipmentLoanDTO, LoanStatus, MemberDTO } from '@alentapp/shared';
 import { Field } from '../components/ui/field';
 import { membersService } from '../services/members';
@@ -192,6 +192,16 @@ export function EquipmentLoansView() {
       setEditingDueDate('');
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Error al actualizar la fecha');
+    }
+  };
+
+  const handleDeleteLoan = async (loanId: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este registro?')) return;
+    try {
+      await loansService.delete(loanId);
+      setLoans((prev) => prev.filter((l) => l.id !== loanId));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Error al eliminar el préstamo');
     }
   };
 
@@ -597,6 +607,9 @@ export function EquipmentLoansView() {
                                 setConfirmingStatus('Dañado');
                               }}>
                                 Dañado
+                              </Button>
+                              <Button size="xs" colorPalette="red" variant="ghost" onClick={() => void handleDeleteLoan(loan.id)} title="Eliminar">
+                                <LuTrash2 /> Eliminar
                               </Button>
                             </HStack>
                           )
