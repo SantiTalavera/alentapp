@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,9 +11,21 @@ import {
   Stack,
   Table,
   Text,
+  Textarea,
 } from '@chakra-ui/react';
-import { LuRefreshCw, LuSearch, LuTrash2, LuX } from 'react-icons/lu';
-import type { DisciplineDTO, MemberDTO } from '@alentapp/shared';
+import { LuPencil, LuRefreshCw, LuSearch, LuTrash2, LuX } from 'react-icons/lu';
+import type { DisciplineDTO, MemberDTO, UpdateDisciplineRequest } from '@alentapp/shared';
+import {
+  DialogActionTrigger,
+  DialogBody,
+  DialogCloseTrigger,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogRoot,
+  DialogTitle,
+} from '../components/ui/dialog';
+import { Field } from '../components/ui/field';
 import { disciplinesService } from '../services/disciplines';
 import { membersService } from '../services/members';
 
@@ -41,6 +53,24 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleDateString();
 }
 
+function toDateTimeLocalValue(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
+const initialEditFormState = (): UpdateDisciplineRequest => ({
+  reason: '',
+  start_date: '',
+  end_date: '',
+  is_total_suspension: false,
+});
+
 export function DisciplinesView() {
   const [members, setMembers] = useState<MemberDTO[]>([]);
   const [selectedMember, setSelectedMember] = useState<MemberDTO | null>(null);
@@ -51,6 +81,11 @@ export function DisciplinesView() {
   const [deletingDisciplineId, setDeletingDisciplineId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingDiscipline, setEditingDiscipline] = useState<DisciplineDTO | null>(null);
+  const [editFormData, setEditFormData] = useState<UpdateDisciplineRequest>(initialEditFormState());
+  const [editFormError, setEditFormError] = useState<string | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   const filteredMembers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -123,6 +158,49 @@ export function DisciplinesView() {
     await loadMembers();
   };
 
+  const openEditModal = (discipline: DisciplineDTO) => {
+    setEditingDiscipline(discipline);
+    setEditFormData({
+      reason: discipline.reason,
+      start_date: toDateTimeLocalValue(discipline.start_date),
+      end_date: toDateTimeLocalValue(discipline.end_date),
+      is_total_suspension: discipline.is_total_suspension,
+    });
+    setEditFormError(null);
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!editingDiscipline || !selectedMember) {
+      return;
+    }
+
+    setIsEditSubmitting(true);
+    setEditFormError(null);
+    setSuccessMessage(null);
+
+    try {
+      await disciplinesService.update(editingDiscipline.id, {
+        reason: editFormData.reason,
+        start_date: editFormData.start_date,
+        end_date: editFormData.end_date,
+        is_total_suspension: editFormData.is_total_suspension,
+      });
+      setSuccessMessage('Sanción actualizada correctamente.');
+      setIsEditOpen(false);
+      setEditingDiscipline(null);
+      setEditFormData(initialEditFormState());
+      await loadDisciplines(selectedMember);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'No se pudo actualizar la sanción.';
+      setEditFormError(message);
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
   const handleDelete = async (discipline: DisciplineDTO) => {
     const status = getDisciplineStatus(discipline);
     const warning =
@@ -159,7 +237,93 @@ export function DisciplinesView() {
   }, []);
 
   return (
-    <Stack gap="8">
+    <>
+      <DialogRoot
+        open={isEditOpen}
+        onOpenChange={(event) => {
+          setIsEditOpen(event.open);
+          if (!event.open) {
+            setEditingDiscipline(null);
+            setEditFormData(initialEditFormState());
+            setEditFormError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={handleEditSubmit}>
+            <DialogHeader>
+              <DialogTitle>Editar sanción</DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              <Stack gap="4">
+                {editFormError ? (
+                  <Text color="red.600" fontWeight="medium">
+                    {editFormError}
+                  </Text>
+                ) : null}
+
+                <Field label="Socio">
+                  <Input value={selectedMember ? `${selectedMember.name} - DNI ${selectedMember.dni}` : ''} readOnly />
+                </Field>
+
+                <Field label="Motivo" required>
+                  <Textarea
+                    value={editFormData.reason ?? ''}
+                    onChange={(event) =>
+                      setEditFormData({ ...editFormData, reason: event.target.value })
+                    }
+                    rows={4}
+                  />
+                </Field>
+
+                <Field label="Fecha de inicio" required>
+                  <Input
+                    type="datetime-local"
+                    value={editFormData.start_date ?? ''}
+                    onChange={(event) =>
+                      setEditFormData({ ...editFormData, start_date: event.target.value })
+                    }
+                  />
+                </Field>
+
+                <Field label="Fecha de fin" required>
+                  <Input
+                    type="datetime-local"
+                    value={editFormData.end_date ?? ''}
+                    onChange={(event) =>
+                      setEditFormData({ ...editFormData, end_date: event.target.value })
+                    }
+                  />
+                </Field>
+
+                <Field label="Suspensión total">
+                  <input
+                    type="checkbox"
+                    checked={editFormData.is_total_suspension ?? false}
+                    onChange={(event) =>
+                      setEditFormData({
+                        ...editFormData,
+                        is_total_suspension: event.target.checked,
+                      })
+                    }
+                  />
+                </Field>
+              </Stack>
+            </DialogBody>
+            <DialogFooter>
+              <DialogActionTrigger asChild>
+                <Button variant="outline">Cancelar</Button>
+              </DialogActionTrigger>
+              <Button type="submit" colorPalette="blue" loading={isEditSubmitting}>
+                Guardar cambios
+              </Button>
+            </DialogFooter>
+            <DialogCloseTrigger />
+          </form>
+        </DialogContent>
+      </DialogRoot>
+
+      <Stack gap="8">
       <Flex justify="space-between" align="center" wrap="wrap" gap="4">
         <Stack gap="1">
           <Heading size="2xl" fontWeight="bold">
@@ -358,16 +522,26 @@ export function DisciplinesView() {
                         </Box>
                       </Table.Cell>
                       <Table.Cell textAlign="end">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          colorPalette="red"
-                          onClick={() => void handleDelete(discipline)}
-                          loading={deletingDisciplineId === discipline.id}
-                          disabled={deletingDisciplineId !== null && deletingDisciplineId !== discipline.id}
-                        >
-                          <LuTrash2 /> Eliminar
-                        </Button>
+                        <HStack gap="1" justify="flex-end">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEditModal(discipline)}
+                            disabled={deletingDisciplineId !== null}
+                          >
+                            <LuPencil /> Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            colorPalette="red"
+                            onClick={() => void handleDelete(discipline)}
+                            loading={deletingDisciplineId === discipline.id}
+                            disabled={deletingDisciplineId !== null && deletingDisciplineId !== discipline.id}
+                          >
+                            <LuTrash2 /> Eliminar
+                          </Button>
+                        </HStack>
                       </Table.Cell>
                     </Table.Row>
                   );
@@ -377,6 +551,7 @@ export function DisciplinesView() {
           )}
         </Box>
       </Flex>
-    </Stack>
+      </Stack>
+    </>
   );
 }
