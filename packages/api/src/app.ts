@@ -20,6 +20,10 @@ import { GetSportByIdUseCase } from './application/sport/GetSportByIdUseCase.js'
 import { UpdateSportUseCase } from './application/sport/UpdateSportUseCase.js';
 import { DeleteSportUseCase } from './application/sport/DeleteSportUseCase.js';
 import { SportController } from './delivery/SportController.js';
+import { PostgresLockerRepository } from './infrastructure/PostgresLockerRepository.js';
+import { LockerValidator } from './domain/services/LockerValidator.js';
+import { NewLockerUseCase } from './application/locker/NewLockerUseCase.js';
+import { LockerController } from './delivery/LockerController.js';
 import { PostgresMedicalCertificateRepository } from './infrastructure/PostgresMedicalCertificateRepository.js';
 import { CreateMedicalCertificateUseCase } from './application/medical-certificate/CreateMedicalCertificateUseCase.js';
 import { UpdateMedicalCertificateUseCase } from './application/medical-certificate/UpdateMedicalCertificateUseCase.js';
@@ -117,6 +121,11 @@ export function buildApp() {
         updateSportUseCase,
         deleteSportUseCase,
     );
+
+    const lockerRepository = new PostgresLockerRepository();
+    const lockerValidator = new LockerValidator();
+    const newLockerUseCase = new NewLockerUseCase(lockerRepository, lockerValidator);
+    const lockerController = new LockerController(newLockerUseCase);
 
     const medicalCertificateRepository = new PostgresMedicalCertificateRepository();
     const medicalCertificateValidator = new MedicalCertificateValidator();
@@ -231,6 +240,7 @@ export function buildApp() {
     server.patch('/api/v1/sports/:id', sportController.update.bind(sportController));
     server.delete('/api/v1/sports/:id', sportController.delete.bind(sportController));
     server.post('/api/v1/sports', sportController.create.bind(sportController));
+    server.post('/api/v1/lockers', lockerController.create.bind(lockerController));
     server.post('/api/v1/medical-certificates', medicalCertificateController.create.bind(medicalCertificateController));
     server.patch('/api/v1/disciplines/:id', disciplineController.update.bind(disciplineController));
     server.patch('/api/v1/medical-certificates/:id', medicalCertificateController.update.bind(medicalCertificateController));

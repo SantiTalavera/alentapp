@@ -1,5 +1,5 @@
 import { Box, SimpleGrid, Heading, Text, VStack } from "@chakra-ui/react";
-import { LuUsers, LuMedal, LuClipboardPen, LuDollarSign, LuDumbbell } from "react-icons/lu";
+import { LuUsers, LuMedal, LuClipboardPen, LuDollarSign, LuDumbbell, LuArchive } from "react-icons/lu";
 import { SectionCard } from "../components/SectionCard";
 
 export function HomeView() {
@@ -57,6 +57,13 @@ export function HomeView() {
           description="Administra los préstamos de equipamiento."
           to="/loans"
           icon={LuDumbbell}
+        />
+
+        <SectionCard
+          title="Casilleros"
+          description="Administra el inventario, alta, baja y estado de los casilleros del club."
+          to="/lockers"
+          icon={LuArchive}
         />
 
         {/* Future sections can be added here following the same pattern */}
