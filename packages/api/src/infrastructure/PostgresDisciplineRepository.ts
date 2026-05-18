@@ -45,6 +45,19 @@ export class PostgresDisciplineRepository implements DisciplineRepository {
         return discipline ? this.mapToDTO(discipline) : null;
     }
 
+    async findByMemberId(memberId: string): Promise<DisciplineDTO[]> {
+        const disciplines = await prisma.discipline.findMany({
+            where: {
+                member_id: memberId,
+            },
+            orderBy: {
+                start_date: 'desc',
+            },
+        });
+
+        return disciplines.map((discipline) => this.mapToDTO(discipline));
+    }
+
 
     async findActiveTotalSuspensionsByMemberId(
         memberId: string,
@@ -68,6 +81,8 @@ export class PostgresDisciplineRepository implements DisciplineRepository {
 
         return disciplines.map((discipline) => this.mapToDTO(discipline));
     }
+
+
 
     async update(
         id: string,
