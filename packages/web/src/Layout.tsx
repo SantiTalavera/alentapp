@@ -93,6 +93,18 @@ function Layout() {
                                 Casilleros
                             </Text>
                         </RouterLink>
+                        <RouterLink to="/disciplines">
+                            <Text
+                                fontWeight="semibold"
+                                fontSize="sm"
+                                textTransform="uppercase"
+                                letterSpacing="wider"
+                                color="fg.muted"
+                                _hover={{ color: "blue.500", textDecoration: "none" }}
+                            >
+                                Sanciones
+                            </Text>
+                        </RouterLink>
                     </HStack>
                 </Flex>
             </Box>

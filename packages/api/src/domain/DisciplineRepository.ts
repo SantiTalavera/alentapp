@@ -15,4 +15,13 @@ export interface DisciplineRepository {
     memberId: string,
     memberStatus: MemberStatus
   ): Promise<DisciplineDTO>;
+  //Borrado fisico
+  delete(id: string): Promise<void>;
+  //Borrado fisico y actualiza el estado del socio si se trataba de una suspension total
+  deleteWithMemberStatus(
+    id: string,
+    memberId: string,
+    memberStatus: MemberStatus
+  ): Promise<void>;
+
 }

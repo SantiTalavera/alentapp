@@ -4,13 +4,15 @@ import { NewDisciplineUseCase } from '../application/discipline/NewDisciplineUse
 import { UpdateDisciplineUseCase } from '../application/discipline/UpdateDisciplineUseCase.js';
 import { GetDisciplineByIdUseCase } from '../application/discipline/GetDisciplineByIdUseCase.js';
 import { GetDisciplineByMemberIdUseCase } from '../application/discipline/GetDisciplineByMemberIdUseCase.js';
+import { DeleteDisciplineUseCase } from '../application/discipline/DeleteDisciplineUseCase.js';
 
 export class DisciplineController {
     constructor(
         private readonly newDisciplineUseCase: NewDisciplineUseCase,
         private readonly updateDisciplineUseCase: UpdateDisciplineUseCase,
         private readonly getDisciplineByIdUseCase: GetDisciplineByIdUseCase,
-        private readonly getDisciplineByMemberIdUseCase: GetDisciplineByMemberIdUseCase
+        private readonly getDisciplineByMemberIdUseCase: GetDisciplineByMemberIdUseCase,
+        private readonly deleteDisciplineUseCase: DeleteDisciplineUseCase
     ) {}
 
     async create(
@@ -125,5 +127,28 @@ export class DisciplineController {
 
             return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
         }
-    }    
+    }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply
+    ) {
+        try {
+            const { id } = request.params;
+            await this.deleteDisciplineUseCase.execute(id);
+            return reply.code(204).send();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error interno, reintente más tarde';
+
+            if (message === 'La disciplina no existe') {
+                return reply.code(404).send({ error: message });
+            }
+
+            if (message === 'Identificador de disciplina inválido') {
+                return reply.code(400).send({ error: message });
+            }
+
+            return reply.code(500).send({ error: 'Error interno, reintente más tarde' });
+        }
+    }
 }
