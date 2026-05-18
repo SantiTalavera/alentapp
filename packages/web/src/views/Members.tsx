@@ -73,7 +73,6 @@ export function MembersView() {
   const [isMedicalCertDialogOpen, setIsMedicalCertDialogOpen] = useState(false);
   const [selectedMemberForMedicalCert, setSelectedMemberForMedicalCert] = useState<MemberDTO | null>(null);
   const [isSubmittingMedicalCert, setIsSubmittingMedicalCert] = useState(false);
-  const [editingMedicalCertId, setEditingMedicalCertId] = useState<string | null>(null);
 
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedMemberForPayment, setSelectedMemberForPayment] = useState<MemberDTO | null>(null);
@@ -179,7 +178,6 @@ export function MembersView() {
   };
 
   const openMedicalCertModal = (member: MemberDTO) => {
-    setEditingMedicalCertId(null);
     setSelectedMemberForMedicalCert(member);
     setMedicalCertFormData({
       member_id: member.id,
@@ -309,20 +307,10 @@ export function MembersView() {
     e.preventDefault();
     setIsSubmittingMedicalCert(true);
     try {
-      if (editingMedicalCertId) {
-        await medicalCertificatesService.update(editingMedicalCertId, {
-            issue_date: medicalCertFormData.issue_date,
-            expiry_date: medicalCertFormData.expiry_date,
-            doctor_license: medicalCertFormData.doctor_license,
-        });
-        alert("Certificado médico actualizado correctamente.");
-      } else {
-        await medicalCertificatesService.create(medicalCertFormData);
-        alert("Certificado médico registrado correctamente.");
-      }
+      await medicalCertificatesService.create(medicalCertFormData);
+      alert("Certificado médico registrado correctamente.");
       setIsMedicalCertDialogOpen(false);
       setSelectedMemberForMedicalCert(null);
-      setEditingMedicalCertId(null);
     } catch (err: any) {
       alert(err.message || "Error al registrar el certificado");
     } finally {
@@ -680,21 +668,19 @@ export function MembersView() {
       <form onSubmit={handleMedicalCertSubmit}>
         <DialogHeader>
           <DialogTitle>
-            {editingMedicalCertId ? "Actualizar Certificado Médico" : "Registrar Certificado Médico"}
+            Registrar Certificado Médico
             {selectedMemberForMedicalCert ? ` - ${selectedMemberForMedicalCert.name}` : ""}
           </DialogTitle>
         </DialogHeader>
         <DialogBody>
-          {!editingMedicalCertId && (
-            <Box bg="orange.100" p={3} borderRadius="md" mb={4} borderLeftWidth="4px" borderLeftColor="orange.500">
-              <Text fontWeight="bold" color="orange.800" fontSize="sm">
-                  ⚠️ Atención
-              </Text>
-              <Text color="orange.800" mt={1} fontSize="sm">
-                  Cualquier certificado previo activo quedará automáticamente invalidado.
-              </Text>
-            </Box>
-          )}
+          <Box bg="orange.100" p={3} borderRadius="md" mb={4} borderLeftWidth="4px" borderLeftColor="orange.500">
+            <Text fontWeight="bold" color="orange.800" fontSize="sm">
+                ⚠️ Atención
+            </Text>
+            <Text color="orange.800" mt={1} fontSize="sm">
+                Cualquier certificado previo activo quedará automáticamente invalidado.
+            </Text>
+          </Box>
           <Stack gap="4">
             <Field label="Fecha de Emisión" required>
               <Input
@@ -727,7 +713,7 @@ export function MembersView() {
             <Button variant="outline">Cancelar</Button>
           </DialogActionTrigger>
           <Button type="submit" colorPalette="blue" loading={isSubmittingMedicalCert}>
-            {editingMedicalCertId ? "Actualizar Certificado" : "Registrar Certificado"}
+            Registrar Certificado
           </Button>
         </DialogFooter>
         <DialogCloseTrigger />
