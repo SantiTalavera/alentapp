@@ -4,6 +4,7 @@ import { CreateEquipmentLoanUseCase } from '../application/loan/CreateEquipmentL
 import { GetEquipmentLoansUseCase } from '../application/loan/GetEquipmentLoansUseCase.js';
 import { GetEquipmentLoanByIdUseCase } from '../application/loan/GetEquipmentLoanByIdUseCase.js';
 import { UpdateEquipmentLoanUseCase } from '../application/loan/UpdateEquipmentLoanUseCase.js';
+import { DeleteEquipmentLoanUseCase } from '../application/loan/DeleteEquipmentLoanUseCase.js';
 
 // Mensajes que mapean a 400 Bad Request (validaciones de formato / campos)
 const BAD_REQUEST_MESSAGES = new Set([
@@ -30,6 +31,7 @@ const UNPROCESSABLE_MESSAGES = new Set([
     'La fecha de devolución debe ser una fecha futura',
     'El préstamo ya se encuentra en un estado terminal y no puede ser modificado',
     'La fecha de devolución no puede ser anterior a la fecha de préstamo',
+    'No se puede eliminar un préstamo con estado Returned/Damaged',
 ]);
 
 function resolveHttpError(message: string): number {
@@ -45,6 +47,7 @@ export class EquipmentLoanController {
         private readonly getEquipmentLoansUseCase: GetEquipmentLoansUseCase,
         private readonly getEquipmentLoanByIdUseCase: GetEquipmentLoanByIdUseCase,
         private readonly updateEquipmentLoanUseCase: UpdateEquipmentLoanUseCase,
+        private readonly deleteEquipmentLoanUseCase: DeleteEquipmentLoanUseCase,
     ) { }
 
     async create(
@@ -116,6 +119,26 @@ export class EquipmentLoanController {
     ) {
         try {
             const loan = await this.updateEquipmentLoanUseCase.execute(request.params.id, request.body);
+            return reply.code(200).send({ data: loan });
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : 'Error interno, reintente más tarde';
+
+            const statusCode = resolveHttpError(message);
+            return reply.code(statusCode).send({
+                error: statusCode === 500 ? 'Error interno, reintente más tarde' : message,
+            });
+        }
+    }
+
+    async delete(
+        request: FastifyRequest<{ Params: { id: string } }>,
+        reply: FastifyReply,
+    ) {
+        try {
+            const loan = await this.deleteEquipmentLoanUseCase.execute(request.params.id);
             return reply.code(200).send({ data: loan });
         } catch (error) {
             const message =
