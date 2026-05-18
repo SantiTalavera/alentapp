@@ -12,6 +12,7 @@ import { NewDisciplineUseCase } from './application/discipline/NewDisciplineUseC
 import { UpdateDisciplineUseCase } from './application/discipline/UpdateDisciplineUseCase.js';
 import { GetDisciplineByIdUseCase } from './application/discipline/GetDisciplineByIdUseCase.js';
 import { GetDisciplineByMemberIdUseCase } from './application/discipline/GetDisciplineByMemberIdUseCase.js';
+import { DeleteDisciplineUseCase } from './application/discipline/DeleteDisciplineUseCase.js';
 import { DisciplineValidator } from './domain/services/DisciplineValidator.js';
 import { PostgresDisciplineRepository } from './infrastructure/PostgresDisciplineRepository.js';
 import { PostgresSportRepository } from './infrastructure/PostgresSportRepository.js';
@@ -118,12 +119,17 @@ export function buildApp() {
         disciplineRepository,
         memberRepo
     );
+    const deleteDisciplineUseCase = new DeleteDisciplineUseCase(
+        disciplineRepository,
+        disciplineValidator
+    );
 
     const disciplineController = new DisciplineController(
         newDisciplineUseCase,
         updateDisciplineUseCase,
         getDisciplineByIdUseCase,
-        getDisciplineByMemberIdUseCase
+        getDisciplineByMemberIdUseCase,
+        deleteDisciplineUseCase
     );
 
 
@@ -261,6 +267,7 @@ export function buildApp() {
     server.post('/api/v1/disciplines', disciplineController.create.bind(disciplineController));
     server.get('/api/v1/members/:memberId/disciplines', disciplineController.getByMemberId.bind(disciplineController));
     server.get('/api/v1/disciplines/:id', disciplineController.getById.bind(disciplineController));
+    server.delete('/api/v1/disciplines/:id', disciplineController.delete.bind(disciplineController));
     server.get('/api/v1/sports', sportController.getAll.bind(sportController));
     server.get('/api/v1/sports/:id', sportController.getById.bind(sportController));
     server.patch('/api/v1/sports/:id', sportController.update.bind(sportController));
