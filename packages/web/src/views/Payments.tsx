@@ -272,8 +272,7 @@ export function PaymentsView() {
                 <Table.ColumnHeader>Monto</Table.ColumnHeader>
                 <Table.ColumnHeader>Vencimiento</Table.ColumnHeader>
                 <Table.ColumnHeader>Estado</Table.ColumnHeader>
-                <Table.ColumnHeader textAlign="end">Acciones</Table.ColumnHeader>
-                <Table.ColumnHeader textAlign="end">Acciones</Table.ColumnHeader>
+                <Table.ColumnHeader textAlign="center">Acciones</Table.ColumnHeader>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -307,8 +306,9 @@ export function PaymentsView() {
                         {getStatusLabel(payment.status)}
                       </Box>
                     </Table.Cell>
-                    <Table.Cell textAlign="end">
-                      <HStack gap="2" justify="flex-end">
+                    {/* Agrupamos todas las acciones prolijamente en la misma celda */}
+                    <Table.Cell textAlign="center">
+                      <HStack gap="2" justify="center">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -325,12 +325,15 @@ export function PaymentsView() {
                         >
                           Cobrar
                         </Button>
+                        <Button
+                          size="sm"
+                          colorPalette="red"
+                          variant="ghost"
+                          onClick={() => handleCancel(payment.id)}
+                        >
+                          Cancelar
+                        </Button>
                       </HStack>
-                    </Table.Cell>
-                    <Table.Cell textAlign="end">
-                      <Button size="sm" colorPalette="red" variant="ghost" onClick={() => handleCancel(payment.id)}>
-                        Cancelar
-                      </Button>
                     </Table.Cell>
                   </Table.Row>
                 );

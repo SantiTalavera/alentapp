@@ -40,6 +40,7 @@ import { GetMedicalCertificateByIdUseCase } from './application/medical-certific
 import { MedicalCertificateController } from './delivery/MedicalCertificateController.js';
 import { MedicalCertificateValidator } from './domain/services/MedicalCertificateValidator.js';
 import { PostgresPaymentRepository } from './infrastructure/PostgresPaymentRepository.js';
+import { PaymentValidator } from './domain/services/PaymentValidator.js';
 import { CreatePaymentUseCase } from './application/payment/CreatePaymentUseCase.js';
 import { GetPaymentsUseCase } from './application/payment/GetPaymentsUseCase.js';
 import { GetPaymentByIdUseCase } from './application/payment/GetPaymentByIdUseCase.js';
@@ -186,14 +187,15 @@ export function buildApp() {
     );
 
     const paymentRepository = new PostgresPaymentRepository();
+    const paymentValidator = new PaymentValidator(paymentRepository, memberRepo);
     const createPaymentUseCase = new CreatePaymentUseCase(
         paymentRepository,
-        memberRepo
+        paymentValidator
     );
-    const getPaymentsUseCase = new GetPaymentsUseCase(paymentRepository);
-    const getPaymentByIdUseCase = new GetPaymentByIdUseCase(paymentRepository);
-    const updatePaymentUseCase = new UpdatePaymentUseCase(paymentRepository);
-    const cancelPaymentUseCase = new CancelPaymentUseCase(paymentRepository);
+    const getPaymentsUseCase = new GetPaymentsUseCase(paymentRepository, paymentValidator);
+    const getPaymentByIdUseCase = new GetPaymentByIdUseCase(paymentRepository, paymentValidator);
+    const updatePaymentUseCase = new UpdatePaymentUseCase(paymentRepository, paymentValidator);
+    const cancelPaymentUseCase = new CancelPaymentUseCase(paymentRepository, paymentValidator);
     const paymentController = new PaymentController(
         createPaymentUseCase,
         getPaymentsUseCase,
