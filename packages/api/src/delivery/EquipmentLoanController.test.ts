@@ -147,4 +147,84 @@ describe('EquipmentLoanController — create()', () => {
             error: 'Error interno, reintente más tarde',
         });
     });
+
+    // =========================================================================
+    // update()
+    // =========================================================================
+    describe('update()', () => {
+        const mockUpdateUseCase = { execute: vi.fn() };
+
+        beforeEach(() => {
+            (controller as any).updateEquipmentLoanUseCase = mockUpdateUseCase;
+            mockUpdateUseCase.execute.mockReset();
+        });
+
+        it('debe responder con código 200 y el EquipmentLoanDTO cuando el préstamo es actualizado exitosamente', async () => {
+            const loan = buildLoan({ status: 'Devuelto' });
+            mockUpdateUseCase.execute.mockResolvedValueOnce(loan);
+
+            const mockReply = buildMockReply();
+            const mockRequest = {
+                params: { id: LOAN_UUID },
+                body: { status: 'Devuelto' },
+            };
+
+            await controller.update(mockRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(200);
+            expect(mockReply.send).toHaveBeenCalledWith({ data: loan });
+            expect(mockUpdateUseCase.execute).toHaveBeenCalledWith(LOAN_UUID, { status: 'Devuelto' });
+        });
+
+        it('debe responder con código 404 cuando el préstamo no existe', async () => {
+            mockUpdateUseCase.execute.mockRejectedValueOnce(new Error('El préstamo no existe'));
+
+            const mockReply = buildMockReply();
+            const mockRequest = {
+                params: { id: LOAN_UUID },
+                body: { status: 'Devuelto' },
+            };
+
+            await controller.update(mockRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(404);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'El préstamo no existe' });
+        });
+
+        it('debe responder con código 422 cuando la transición de estado no es válida', async () => {
+            mockUpdateUseCase.execute.mockRejectedValueOnce(
+                new Error('El préstamo ya se encuentra en un estado terminal y no puede ser modificado'),
+            );
+
+            const mockReply = buildMockReply();
+            const mockRequest = {
+                params: { id: LOAN_UUID },
+                body: { status: 'Prestado' },
+            };
+
+            await controller.update(mockRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(422);
+            expect(mockReply.send).toHaveBeenCalledWith({
+                error: 'El préstamo ya se encuentra en un estado terminal y no puede ser modificado',
+            });
+        });
+
+        it('debe responder con código 500 ante un error inesperado del sistema', async () => {
+            mockUpdateUseCase.execute.mockRejectedValueOnce(new Error('Prisma connection timeout'));
+
+            const mockReply = buildMockReply();
+            const mockRequest = {
+                params: { id: LOAN_UUID },
+                body: { status: 'Devuelto' },
+            };
+
+            await controller.update(mockRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(500);
+            expect(mockReply.send).toHaveBeenCalledWith({
+                error: 'Error interno, reintente más tarde',
+            });
+        });
+    });
 });
