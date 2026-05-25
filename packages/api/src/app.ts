@@ -63,7 +63,6 @@ import { GetEquipmentLoanByIdUseCase } from './application/loan/GetEquipmentLoan
 import { UpdateEquipmentLoanUseCase } from './application/loan/UpdateEquipmentLoanUseCase.js';
 import { DeleteEquipmentLoanUseCase } from './application/loan/DeleteEquipmentLoanUseCase.js';
 import { EquipmentLoanController } from './delivery/EquipmentLoanController.js';
-import { UpdateDisciplineUseCase } from './application/discipline/UpdateDisciplineUseCase.js';
 
 
 export function buildApp() {
