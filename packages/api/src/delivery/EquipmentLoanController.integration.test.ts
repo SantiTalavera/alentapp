@@ -263,4 +263,86 @@ describe('EquipmentLoan API — tests de integración (POST /api/v1/loans)', () 
 
         expect(body.error).toBe('El socio no está activo y no puede solicitar un préstamo');
     });
+
+    // -------------------------------------------------------------------------
+    // Tests de actualización (PATCH /api/v1/loans/:id)
+    // -------------------------------------------------------------------------
+    describe('PATCH /api/v1/loans/:id', () => {
+        it('debe retornar 200 y el préstamo actualizado cuando se realiza la transición de Prestado a Devuelto', async () => {
+            const { PostgresEquipmentLoanRepository } = await import('../infrastructure/PostgresEquipmentLoanRepository.js');
+            const loanId = '11111111-2222-3333-4444-555555555555';
+            const existingLoan = {
+                id: loanId,
+                item_name: 'Pelota de Básquet',
+                status: 'Prestado' as const,
+                loan_date: '2026-05-24T12:00:00.000Z',
+                due_date: null,
+                member_id: SENIOR_MEMBER_UUID,
+                deleted_at: null,
+            };
+
+            const findByIdSpy = vi.spyOn(PostgresEquipmentLoanRepository.prototype, 'findById')
+                .mockClear()
+                .mockResolvedValueOnce(existingLoan);
+
+            const updateSpy = vi.spyOn(PostgresEquipmentLoanRepository.prototype, 'update')
+                .mockClear()
+                .mockResolvedValueOnce({
+                    ...existingLoan,
+                    status: 'Devuelto',
+                });
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: `/api/v1/loans/${loanId}`,
+                payload: {
+                    status: 'Devuelto',
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+
+            const body = JSON.parse(response.payload);
+            expect(body.data).toBeDefined();
+            expect(body.data.status).toBe('Devuelto');
+            expect(findByIdSpy).toHaveBeenCalledWith(loanId);
+            expect(updateSpy).toHaveBeenCalledWith(loanId, { status: 'Devuelto' });
+        });
+
+        it('debe retornar 422 si se intenta actualizar un préstamo que ya está en estado terminal Devuelto', async () => {
+            const { PostgresEquipmentLoanRepository } = await import('../infrastructure/PostgresEquipmentLoanRepository.js');
+            const loanId = '22222222-3333-4444-5555-666666666666';
+            const existingLoan = {
+                id: loanId,
+                item_name: 'Pelota de Básquet',
+                status: 'Devuelto' as const,
+                loan_date: '2026-05-24T12:00:00.000Z',
+                due_date: null,
+                member_id: SENIOR_MEMBER_UUID,
+                deleted_at: null,
+            };
+
+            const findByIdSpy = vi.spyOn(PostgresEquipmentLoanRepository.prototype, 'findById')
+                .mockClear()
+                .mockResolvedValueOnce(existingLoan);
+
+            const updateSpy = vi.spyOn(PostgresEquipmentLoanRepository.prototype, 'update')
+                .mockClear();
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: `/api/v1/loans/${loanId}`,
+                payload: {
+                    status: 'Dañado',
+                },
+            });
+
+            expect(response.statusCode).toBe(422);
+
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('El préstamo ya se encuentra en un estado terminal y no puede ser modificado');
+            expect(findByIdSpy).toHaveBeenCalledWith(loanId);
+            expect(updateSpy).not.toHaveBeenCalled();
+        });
+    });
 });
