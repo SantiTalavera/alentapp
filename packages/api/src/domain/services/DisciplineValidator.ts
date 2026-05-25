@@ -1,4 +1,3 @@
-import { CreateDisciplineRequest, MemberStatus } from '@alentapp/shared';
 import { CreateDisciplineRequest, MemberStatus, UpdateDisciplineRequest } from '@alentapp/shared';
 
 
