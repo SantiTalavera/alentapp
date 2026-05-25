@@ -254,4 +254,26 @@ describe('EquipmentLoanValidator — tests unitarios', () => {
             await expect(validator.validate(request)).resolves.toBeUndefined();
         });
     });
+
+    // =========================================================================
+    // validateStatusTransition()
+    // =========================================================================
+    describe('validateStatusTransition()', () => {
+        it('debe lanzar error cuando el estado actual es Devuelto', () => {
+            expect(() => validator.validateStatusTransition('Devuelto', 'Prestado')).toThrow(
+                'El préstamo ya se encuentra en un estado terminal y no puede ser modificado',
+            );
+        });
+
+        it('debe lanzar error cuando el estado actual es Dañado', () => {
+            expect(() => validator.validateStatusTransition('Dañado', 'Prestado')).toThrow(
+                'El préstamo ya se encuentra en un estado terminal y no puede ser modificado',
+            );
+        });
+
+        it('debe pasar sin lanzar error cuando el estado actual es Prestado', () => {
+            expect(() => validator.validateStatusTransition('Prestado', 'Devuelto')).not.toThrow();
+            expect(() => validator.validateStatusTransition('Prestado', 'Dañado')).not.toThrow();
+        });
+    });
 });
