@@ -340,3 +340,76 @@ describe('DisciplineController — update()', () => {
         });
     });
 });
+
+describe('DisciplineController — delete()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('debe llamar al caso de uso con el id recibido y responder 204 cuando elimina correctamente', async () => {
+        mockDeleteDisciplineUseCase.execute.mockResolvedValueOnce(undefined);
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+        };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockDeleteDisciplineUseCase.execute).toHaveBeenCalledWith(DISCIPLINE_ID);
+        expect(mockReply.code).toHaveBeenCalledWith(204);
+        expect(mockReply.send).toHaveBeenCalledWith();
+    });
+
+    it('debe responder 404 cuando la disciplina no existe', async () => {
+        mockDeleteDisciplineUseCase.execute.mockRejectedValueOnce(
+            new Error('La disciplina no existe'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+        };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'La disciplina no existe' });
+    });
+
+    it('debe responder 400 cuando el identificador de disciplina es inválido', async () => {
+        mockDeleteDisciplineUseCase.execute.mockRejectedValueOnce(
+            new Error('Identificador de disciplina inválido'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: 'id-invalido' },
+        };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Identificador de disciplina inválido',
+        });
+    });
+
+    it('debe responder 500 ante un error inesperado del sistema', async () => {
+        mockDeleteDisciplineUseCase.execute.mockRejectedValueOnce(
+            new Error('Prisma connection timeout'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+        };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Error interno, reintente más tarde',
+        });
+    });
+});
