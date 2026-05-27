@@ -41,6 +41,10 @@ function buildPayload(memberId: string, overrides: Record<string, unknown> = {})
 let mockMembers: Record<string, MemberDTO> = {};
 let mockDisciplines: DisciplineDTO[] = [];
 
+function buildMockDisciplineId(index: number): string {
+    return `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`;
+}
+
 function resetMockState() {
     mockMembers = {
         [ACTIVE_MEMBER_ID]: buildMember({ id: ACTIVE_MEMBER_ID }),
@@ -98,7 +102,7 @@ vi.mock('../infrastructure/PostgresDisciplineRepository.js', () => ({
     PostgresDisciplineRepository: class {
         async create(data: Omit<DisciplineDTO, 'id'>): Promise<DisciplineDTO> {
             const discipline: DisciplineDTO = {
-                id: `discipline-${mockDisciplines.length + 1}`,
+                id: buildMockDisciplineId(mockDisciplines.length + 1),
                 ...data,
             };
             mockDisciplines.push(discipline);
@@ -377,5 +381,40 @@ describe('Discipline API — tests de integración', () => {
         const body = JSON.parse(response.payload) as { error: string };
         expect(body.error).toBe('El socio de la disciplina no puede modificarse');
         expect(mockDisciplines[0].member_id).toBe(ACTIVE_MEMBER_ID);
+    });
+
+    it('debe retornar 204 y restaurar Member.status cuando DELETE elimina una suspensión total activa', async () => {
+        const createResponse = await app.inject({
+            method: 'POST',
+            url: '/api/v1/disciplines',
+            payload: buildPayload(SUSPENSION_MEMBER_ID, {
+                is_total_suspension: true,
+            }),
+        });
+        const createdBody = JSON.parse(createResponse.payload) as { data: DisciplineDTO };
+
+        expect(mockMembers[SUSPENSION_MEMBER_ID].status).toBe('Suspendido');
+
+        const response = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/disciplines/${createdBody.data.id}`,
+        });
+
+        expect(response.statusCode).toBe(204);
+        expect(response.payload).toBe('');
+        expect(mockDisciplines).toHaveLength(0);
+        expect(mockMembers[SUSPENSION_MEMBER_ID].status).toBe('Moroso');
+    });
+
+    it('debe retornar 404 cuando DELETE apunta a una disciplina inexistente', async () => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/disciplines/a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        });
+
+        expect(response.statusCode).toBe(404);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('La disciplina no existe');
     });
 });
