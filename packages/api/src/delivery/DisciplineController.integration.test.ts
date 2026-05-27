@@ -226,7 +226,7 @@ vi.mock('../infrastructure/PostgresEquipmentLoanRepository.js', () => ({
     },
 }));
 
-describe('Discipline API — tests de integración (POST /api/v1/disciplines)', () => {
+describe('Discipline API — tests de integración', () => {
     let app: FastifyInstance;
 
     beforeAll(async () => {
@@ -324,5 +324,58 @@ describe('Discipline API — tests de integración (POST /api/v1/disciplines)', 
         expect(body.data.previous_member_status).toBe('Moroso');
         expect(mockDisciplines).toHaveLength(1);
         expect(mockMembers[SUSPENSION_MEMBER_ID].status).toBe('Suspendido');
+    });
+
+    it('debe retornar 200 y un DisciplineDTO actualizado cuando PATCH recibe campos válidos', async () => {
+        const createResponse = await app.inject({
+            method: 'POST',
+            url: '/api/v1/disciplines',
+            payload: buildPayload(ACTIVE_MEMBER_ID),
+        });
+        const createdBody = JSON.parse(createResponse.payload) as { data: DisciplineDTO };
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/disciplines/${createdBody.data.id}`,
+            payload: {
+                reason: 'Nuevo motivo disciplinario',
+                end_date: daysFromNow(10),
+            },
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: DisciplineDTO };
+
+        expect(body.data.id).toBe(createdBody.data.id);
+        expect(body.data.member_id).toBe(ACTIVE_MEMBER_ID);
+        expect(body.data.reason).toBe('Nuevo motivo disciplinario');
+        expect(new Date(body.data.end_date).getTime()).toBeGreaterThan(
+            new Date(body.data.start_date).getTime(),
+        );
+        expect(mockDisciplines[0].reason).toBe('Nuevo motivo disciplinario');
+    });
+
+    it('debe retornar 400 cuando PATCH recibe member_id en el body', async () => {
+        const createResponse = await app.inject({
+            method: 'POST',
+            url: '/api/v1/disciplines',
+            payload: buildPayload(ACTIVE_MEMBER_ID),
+        });
+        const createdBody = JSON.parse(createResponse.payload) as { data: DisciplineDTO };
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/disciplines/${createdBody.data.id}`,
+            payload: {
+                member_id: SUSPENSION_MEMBER_ID,
+            },
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('El socio de la disciplina no puede modificarse');
+        expect(mockDisciplines[0].member_id).toBe(ACTIVE_MEMBER_ID);
     });
 });
