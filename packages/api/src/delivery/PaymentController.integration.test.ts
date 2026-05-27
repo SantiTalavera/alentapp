@@ -346,4 +346,51 @@ describe('Payment API Integration Tests — POST /api/v1/payments', () => {
             expect(cancelSpy).not.toHaveBeenCalled();
         });
     });
+
+    describe('GET /api/v1/payments', () => {
+        it('debe retornar 200 y la lista de pagos', async () => {
+            const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
+            const expectedPayments = [
+                {
+                    id: 'p-1',
+                    member_id: MEMBER_ID,
+                    amount: 1500,
+                    month: 5,
+                    year: 2026,
+                    due_date: '2026-05-31T00:00:00.000Z',
+                    status: 'Pending' as const,
+                    payment_date: null,
+                }
+            ];
+
+            const findAllSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'findAll')
+                .mockClear()
+                .mockResolvedValueOnce(expectedPayments);
+
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/payments',
+            });
+
+            expect(response.statusCode).toBe(200);
+
+            const body = JSON.parse(response.payload);
+            expect(body.data).toBeDefined();
+            expect(body.data).toBeInstanceOf(Array);
+            expect(body.data[0].id).toBe('p-1');
+            expect(findAllSpy).toHaveBeenCalledWith({});
+        });
+
+        it('debe retornar 400 si se envía un filtro de estado inválido', async () => {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/v1/payments?status=InvalidStatus',
+            });
+
+            expect(response.statusCode).toBe(400);
+
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('Estado de pago no válido');
+        });
+    });
 });
