@@ -104,6 +104,45 @@ describe('DisciplineValidator — tests unitarios', () => {
         });
     });
 
+    describe('validateUpdateRequest()', () => {
+        it('debe pasar sin error cuando se envía al menos un campo editable', () => {
+            expect(() => validator.validateUpdateRequest({ reason: 'Nuevo motivo' })).not.toThrow();
+            expect(() => validator.validateUpdateRequest({ is_total_suspension: true })).not.toThrow();
+        });
+
+        it('debe lanzar error cuando el body está vacío', () => {
+            expect(() => validator.validateUpdateRequest({})).toThrow(
+                'Se debe enviar al menos un campo para actualizar',
+            );
+        });
+
+        it('debe lanzar error cuando el body contiene member_id', () => {
+            expect(() => validator.validateUpdateRequest({ member_id: MEMBER_ID })).toThrow(
+                'El socio de la disciplina no puede modificarse',
+            );
+        });
+
+        it('debe lanzar error cuando el body no contiene campos editables', () => {
+            expect(() => validator.validateUpdateRequest({ foo: 'bar' })).toThrow(
+                'Se debe enviar al menos un campo para actualizar',
+            );
+        });
+
+        it('debe lanzar error cuando reason actualizado está vacío', () => {
+            expect(() => validator.validateUpdateRequest({ reason: '   ' })).toThrow(
+                'El motivo de la disciplina es requerido',
+            );
+        });
+
+        it('debe lanzar error cuando is_total_suspension actualizado no es booleano', () => {
+            expect(() =>
+                validator.validateUpdateRequest({
+                    is_total_suspension: 'true' as unknown as boolean,
+                }),
+            ).toThrow('El campo suspensión total debe ser verdadero o falso');
+        });
+    });
+
     describe('isActive()', () => {
         it('debe devolver true cuando la fecha de referencia está dentro del rango', () => {
             const referenceDate = new Date('2026-05-20T12:00:00.000Z');

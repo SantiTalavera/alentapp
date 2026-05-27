@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { CreateDisciplineRequest, DisciplineDTO } from '@alentapp/shared';
+import type { CreateDisciplineRequest, DisciplineDTO, UpdateDisciplineRequest } from '@alentapp/shared';
 import { DisciplineController } from './DisciplineController.js';
 
 const DISCIPLINE_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
@@ -169,6 +169,170 @@ describe('DisciplineController — create()', () => {
         const mockRequest = { body: buildCreateRequest() };
 
         await controller.create(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Error interno, reintente más tarde',
+        });
+    });
+});
+
+describe('DisciplineController — update()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('debe llamar al caso de uso con id y body, y responder 200 con la disciplina actualizada', async () => {
+        const requestBody: UpdateDisciplineRequest = {
+            reason: 'Nuevo motivo',
+            is_total_suspension: true,
+        };
+        const discipline = buildDiscipline({
+            reason: 'Nuevo motivo',
+            is_total_suspension: true,
+            previous_member_status: 'Activo',
+        });
+        mockUpdateDisciplineUseCase.execute.mockResolvedValueOnce(discipline);
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+            body: requestBody,
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockUpdateDisciplineUseCase.execute).toHaveBeenCalledWith(
+            DISCIPLINE_ID,
+            requestBody,
+        );
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: discipline });
+    });
+
+    it('debe responder 404 cuando la disciplina no existe', async () => {
+        mockUpdateDisciplineUseCase.execute.mockRejectedValueOnce(
+            new Error('La disciplina no existe'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+            body: { reason: 'Nuevo motivo' },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'La disciplina no existe' });
+    });
+
+    it('debe responder 404 cuando el socio asociado no existe', async () => {
+        mockUpdateDisciplineUseCase.execute.mockRejectedValueOnce(new Error('El socio no existe'));
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+            body: { is_total_suspension: true },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'El socio no existe' });
+    });
+
+    it('debe responder 400 cuando el body está vacío', async () => {
+        mockUpdateDisciplineUseCase.execute.mockRejectedValueOnce(
+            new Error('Se debe enviar al menos un campo para actualizar'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+            body: {},
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Se debe enviar al menos un campo para actualizar',
+        });
+    });
+
+    it('debe responder 400 cuando el body contiene member_id', async () => {
+        mockUpdateDisciplineUseCase.execute.mockRejectedValueOnce(
+            new Error('El socio de la disciplina no puede modificarse'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+            body: { member_id: MEMBER_ID },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'El socio de la disciplina no puede modificarse',
+        });
+    });
+
+    it('debe responder 400 cuando la fecha de fin no es posterior a la fecha de inicio', async () => {
+        mockUpdateDisciplineUseCase.execute.mockRejectedValueOnce(
+            new Error('La fecha de fin debe ser posterior a la fecha de inicio'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+            body: {
+                start_date: '2026-05-20T00:00:00.000Z',
+                end_date: '2026-05-20T00:00:00.000Z',
+            },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'La fecha de fin debe ser posterior a la fecha de inicio',
+        });
+    });
+
+    it('debe responder 400 cuando el estado previo del socio no es válido', async () => {
+        mockUpdateDisciplineUseCase.execute.mockRejectedValueOnce(
+            new Error('El estado previo del socio debe ser Activo o Moroso'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+            body: { is_total_suspension: true },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'El estado previo del socio debe ser Activo o Moroso',
+        });
+    });
+
+    it('debe responder 500 ante un error inesperado del sistema', async () => {
+        mockUpdateDisciplineUseCase.execute.mockRejectedValueOnce(
+            new Error('Prisma connection timeout'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: DISCIPLINE_ID },
+            body: { reason: 'Nuevo motivo' },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
 
         expect(mockReply.code).toHaveBeenCalledWith(500);
         expect(mockReply.send).toHaveBeenCalledWith({
