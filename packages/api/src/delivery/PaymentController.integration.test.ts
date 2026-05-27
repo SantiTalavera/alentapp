@@ -271,4 +271,79 @@ describe('Payment API Integration Tests — POST /api/v1/payments', () => {
             expect(updateSpy).toHaveBeenCalledWith(paymentId, { status: 'Canceled' });
         });
     });
+
+    describe('DELETE /api/v1/payments/:id', () => {
+        it('debe retornar 200 y el PaymentDTO cancelado si el pago es pendiente', async () => {
+            const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
+            const paymentId = 'p1a2b3c4-d5e6-7890-abcd-ef1234567890';
+            const existingPayment = {
+                id: paymentId,
+                member_id: MEMBER_ID,
+                amount: 1500,
+                month: 5,
+                year: 2026,
+                due_date: '2026-05-31T00:00:00.000Z',
+                status: 'Pending' as const,
+                payment_date: null,
+            };
+
+            const findByIdSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'findById')
+                .mockClear()
+                .mockResolvedValueOnce(existingPayment);
+
+            const cancelSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'cancel')
+                .mockClear()
+                .mockResolvedValueOnce({
+                    ...existingPayment,
+                    status: 'Canceled',
+                });
+
+            const response = await app.inject({
+                method: 'DELETE',
+                url: `/api/v1/payments/${paymentId}`,
+            });
+
+            expect(response.statusCode).toBe(200);
+
+            const body = JSON.parse(response.payload);
+            expect(body.data).toBeDefined();
+            expect(body.data.status).toBe('Canceled');
+            expect(findByIdSpy).toHaveBeenCalledWith(paymentId);
+            expect(cancelSpy).toHaveBeenCalledWith(paymentId);
+        });
+
+        it('debe retornar 422 si el pago ya se encuentra pagado', async () => {
+            const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
+            const paymentId = 'p1a2b3c4-d5e6-7890-abcd-ef1234567890';
+            const existingPayment = {
+                id: paymentId,
+                member_id: MEMBER_ID,
+                amount: 1500,
+                month: 5,
+                year: 2026,
+                due_date: '2026-05-31T00:00:00.000Z',
+                status: 'Paid' as const,
+                payment_date: '2026-05-27T00:00:00.000Z',
+            };
+
+            const findByIdSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'findById')
+                .mockClear()
+                .mockResolvedValueOnce(existingPayment);
+
+            const cancelSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'cancel')
+                .mockClear();
+
+            const response = await app.inject({
+                method: 'DELETE',
+                url: `/api/v1/payments/${paymentId}`,
+            });
+
+            expect(response.statusCode).toBe(422);
+
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('No se puede cancelar un pago ya efectuado');
+            expect(findByIdSpy).toHaveBeenCalledWith(paymentId);
+            expect(cancelSpy).not.toHaveBeenCalled();
+        });
+    });
 });
