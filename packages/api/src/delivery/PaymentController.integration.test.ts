@@ -181,4 +181,94 @@ describe('Payment API Integration Tests — POST /api/v1/payments', () => {
         const body = JSON.parse(response.payload) as { error: string };
         expect(body.error).toBe('Socio no encontrado');
     });
+
+    describe('PATCH /api/v1/payments/:id', () => {
+        it('debe retornar 200 y el PaymentDTO con status Paid y payment_date autogenerado al pasar de Pending a Paid', async () => {
+            const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
+            const paymentId = 'p1a2b3c4-d5e6-7890-abcd-ef1234567890';
+            const existingPayment = {
+                id: paymentId,
+                member_id: MEMBER_ID,
+                amount: 1500,
+                month: 5,
+                year: 2026,
+                due_date: '2026-05-31T00:00:00.000Z',
+                status: 'Pending' as const,
+                payment_date: null,
+            };
+
+            const findByIdSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'findById')
+                .mockClear()
+                .mockResolvedValueOnce(existingPayment);
+
+            const updateSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'update')
+                .mockClear()
+                .mockImplementationOnce(async (id, data) => ({
+                    ...existingPayment,
+                    ...data,
+                }));
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: `/api/v1/payments/${paymentId}`,
+                payload: {
+                    status: 'Paid',
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+
+            const body = JSON.parse(response.payload);
+            expect(body.data).toBeDefined();
+            expect(body.data.status).toBe('Paid');
+            expect(body.data.payment_date).not.toBeNull();
+            expect(findByIdSpy).toHaveBeenCalledWith(paymentId);
+            expect(updateSpy).toHaveBeenCalledWith(paymentId, expect.objectContaining({
+                status: 'Paid',
+                payment_date: expect.any(String),
+            }));
+        });
+
+        it('debe retornar 200 al transicionar de Pending a Canceled', async () => {
+            const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
+            const paymentId = 'p1a2b3c4-d5e6-7890-abcd-ef1234567890';
+            const existingPayment = {
+                id: paymentId,
+                member_id: MEMBER_ID,
+                amount: 1500,
+                month: 5,
+                year: 2026,
+                due_date: '2026-05-31T00:00:00.000Z',
+                status: 'Pending' as const,
+                payment_date: null,
+            };
+
+            const findByIdSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'findById')
+                .mockClear()
+                .mockResolvedValueOnce(existingPayment);
+
+            const updateSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'update')
+                .mockClear()
+                .mockImplementationOnce(async (id, data) => ({
+                    ...existingPayment,
+                    ...data,
+                }));
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: `/api/v1/payments/${paymentId}`,
+                payload: {
+                    status: 'Canceled',
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+
+            const body = JSON.parse(response.payload);
+            expect(body.data).toBeDefined();
+            expect(body.data.status).toBe('Canceled');
+            expect(findByIdSpy).toHaveBeenCalledWith(paymentId);
+            expect(updateSpy).toHaveBeenCalledWith(paymentId, { status: 'Canceled' });
+        });
+    });
 });
