@@ -4,7 +4,7 @@ import { buildApp } from '../app.js';
 import { CreatePaymentRequest, PaymentDTO, MemberDTO } from '@alentapp/shared';
 
 const MEMBER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
-const PAYMENT_ID = 'p1a2b3c4-d5e6-7890-abcd-ef1234567890';
+const PAYMENT_ID = 'f1a2b3c4-d5e6-7890-abcd-ef1234567890';
 
 // Mock values
 const MOCK_MEMBER: MemberDTO = {
@@ -185,7 +185,7 @@ describe('Payment API Integration Tests — POST /api/v1/payments', () => {
     describe('PATCH /api/v1/payments/:id', () => {
         it('debe retornar 200 y el PaymentDTO con status Paid y payment_date autogenerado al pasar de Pending a Paid', async () => {
             const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
-            const paymentId = 'p1a2b3c4-d5e6-7890-abcd-ef1234567890';
+            const paymentId = 'f1a2b3c4-d5e6-7890-abcd-ef1234567890';
             const existingPayment = {
                 id: paymentId,
                 member_id: MEMBER_ID,
@@ -231,7 +231,7 @@ describe('Payment API Integration Tests — POST /api/v1/payments', () => {
 
         it('debe retornar 200 al transicionar de Pending a Canceled', async () => {
             const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
-            const paymentId = 'p1a2b3c4-d5e6-7890-abcd-ef1234567890';
+            const paymentId = 'f1a2b3c4-d5e6-7890-abcd-ef1234567890';
             const existingPayment = {
                 id: paymentId,
                 member_id: MEMBER_ID,
@@ -275,7 +275,7 @@ describe('Payment API Integration Tests — POST /api/v1/payments', () => {
     describe('DELETE /api/v1/payments/:id', () => {
         it('debe retornar 200 y el PaymentDTO cancelado si el pago es pendiente', async () => {
             const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
-            const paymentId = 'p1a2b3c4-d5e6-7890-abcd-ef1234567890';
+            const paymentId = 'f1a2b3c4-d5e6-7890-abcd-ef1234567890';
             const existingPayment = {
                 id: paymentId,
                 member_id: MEMBER_ID,
@@ -314,7 +314,7 @@ describe('Payment API Integration Tests — POST /api/v1/payments', () => {
 
         it('debe retornar 422 si el pago ya se encuentra pagado', async () => {
             const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
-            const paymentId = 'p1a2b3c4-d5e6-7890-abcd-ef1234567890';
+            const paymentId = 'f1a2b3c4-d5e6-7890-abcd-ef1234567890';
             const existingPayment = {
                 id: paymentId,
                 member_id: MEMBER_ID,
@@ -391,6 +391,59 @@ describe('Payment API Integration Tests — POST /api/v1/payments', () => {
 
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('Estado de pago no válido');
+        });
+    });
+
+    describe('GET /api/v1/payments/:id', () => {
+        it('debe retornar 200 y el PaymentDTO si el pago existe', async () => {
+            const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
+            const paymentId = 'f1a2b3c4-d5e6-7890-abcd-ef1234567890';
+            const expectedPayment = {
+                id: paymentId,
+                member_id: MEMBER_ID,
+                amount: 1500,
+                month: 5,
+                year: 2026,
+                due_date: '2026-05-31T00:00:00.000Z',
+                status: 'Pending' as const,
+                payment_date: null,
+            };
+
+            const findByIdSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'findById')
+                .mockClear()
+                .mockResolvedValueOnce(expectedPayment);
+
+            const response = await app.inject({
+                method: 'GET',
+                url: `/api/v1/payments/${paymentId}`,
+            });
+
+            expect(response.statusCode).toBe(200);
+
+            const body = JSON.parse(response.payload);
+            expect(body.data).toBeDefined();
+            expect(body.data.id).toBe(paymentId);
+            expect(findByIdSpy).toHaveBeenCalledWith(paymentId);
+        });
+
+        it('debe retornar 404 si el pago no existe', async () => {
+            const { PostgresPaymentRepository } = await import('../infrastructure/PostgresPaymentRepository.js');
+            const paymentId = '00000000-0000-0000-0000-000000000000';
+
+            const findByIdSpy = vi.spyOn(PostgresPaymentRepository.prototype, 'findById')
+                .mockClear()
+                .mockResolvedValueOnce(null);
+
+            const response = await app.inject({
+                method: 'GET',
+                url: `/api/v1/payments/${paymentId}`,
+            });
+
+            expect(response.statusCode).toBe(404);
+
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('Pago no encontrado');
+            expect(findByIdSpy).toHaveBeenCalledWith(paymentId);
         });
     });
 });
