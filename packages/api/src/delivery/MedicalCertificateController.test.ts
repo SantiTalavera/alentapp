@@ -28,6 +28,7 @@ function buildCertificateDTO(overrides: Partial<MedicalCertificateDTO> = {}): Me
 const mockCreateUseCase = { execute: vi.fn() };
 const mockUpdateUseCase = { execute: vi.fn() };
 const mockDeleteUseCase = { execute: vi.fn() };
+const mockGetByIdUseCase = { execute: vi.fn() };
 
 // El controlador requiere los 5 casos de uso; los restantes se pasan como stubs
 // vacíos ya que sus tests se implementarán en otras iteraciones.
@@ -36,7 +37,7 @@ const controller = new MedicalCertificateController(
     mockUpdateUseCase as any,
     mockDeleteUseCase as any,
     { execute: vi.fn() } as any, // GetMedicalCertificatesByMemberUseCase — pendiente
-    { execute: vi.fn() } as any, // GetMedicalCertificateByIdUseCase — pendiente
+    mockGetByIdUseCase as any,
 );
 
 // ---------------------------------------------------------------------------
@@ -320,5 +321,49 @@ describe('MedicalCertificateController — delete()', () => {
 
         expect(mockReply.code).toHaveBeenCalledWith(404);
         expect(mockReply.send).toHaveBeenCalledWith({ error: 'El certificado médico no existe' });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite — getById() - Tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('MedicalCertificateController — getById()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1] — getById exitoso → 200 con MedicalCertificateDTO
+
+    it('debe llamar al caso de uso con el id correcto y responder 200 con el MedicalCertificateDTO', async () => {
+        const certificate = buildCertificateDTO();
+        mockGetByIdUseCase.execute.mockResolvedValueOnce(certificate);
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: CERT_UUID },
+        };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockGetByIdUseCase.execute).toHaveBeenCalledWith(CERT_UUID);
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: certificate });
+    });
+
+    // TEST [2] — Certificado inexistente → 404
+
+    it('debe responder con código 404 cuando el certificado no es encontrado', async () => {
+        mockGetByIdUseCase.execute.mockRejectedValueOnce(new Error('Certificado no encontrado'));
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: CERT_UUID },
+        };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Certificado no encontrado' });
     });
 });
