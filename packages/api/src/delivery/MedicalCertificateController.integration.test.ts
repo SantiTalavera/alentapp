@@ -326,3 +326,35 @@ describe('MedicalCertificate API — tests de integración (DELETE /api/v1/medic
         expect(response.payload).toBe('');
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite de tests de integración
+// Ruta bajo prueba: GET /api/v1/medical-certificates/:id
+// ---------------------------------------------------------------------------
+
+describe('MedicalCertificate API — tests de integración (GET /api/v1/medical-certificates/:id)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    // TEST [1]: GET con id existente → 200 con MedicalCertificateDTO
+    it('debe retornar 200 y el MedicalCertificateDTO cuando el id corresponde a un certificado existente', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/medical-certificates/cert-uuid-0001',
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: MedicalCertificateDTO };
+        expect(body.data.id).toBe('cert-uuid-0001');
+        expect(body.data.is_validated).toBe(true);
+    });
+});
