@@ -345,4 +345,49 @@ describe('EquipmentLoan API — tests de integración (POST /api/v1/loans)', () 
             expect(updateSpy).not.toHaveBeenCalled();
         });
     });
+
+    // -------------------------------------------------------------------------
+    // Tests de eliminación lógica (DELETE /api/v1/loans/:id)
+    // -------------------------------------------------------------------------
+    describe('DELETE /api/v1/loans/:id', () => {
+        it('debe retornar 200 y el EquipmentLoanDTO con "deleted_at" poblado cuando el préstamo tiene estado "Prestado" (Loaned)', async () => {
+            const { PostgresEquipmentLoanRepository } = await import('../infrastructure/PostgresEquipmentLoanRepository.js');
+            const loanId = '33333333-4444-5555-6666-777777777777';
+            const existingLoan = {
+                id: loanId,
+                item_name: 'Pelota de Básquet',
+                status: 'Prestado' as const,
+                loan_date: '2026-05-24T12:00:00.000Z',
+                due_date: null,
+                member_id: SENIOR_MEMBER_UUID,
+                deleted_at: null,
+            };
+            const deletedLoan = {
+                ...existingLoan,
+                deleted_at: new Date().toISOString(),
+            };
+
+            vi.spyOn(PostgresEquipmentLoanRepository.prototype, 'findById')
+                .mockClear()
+                .mockResolvedValueOnce(existingLoan);
+
+            const softDeleteSpy = vi.spyOn(PostgresEquipmentLoanRepository.prototype, 'softDelete')
+                .mockClear()
+                .mockResolvedValueOnce(deletedLoan);
+
+            const response = await app.inject({
+                method: 'DELETE',
+                url: `/api/v1/loans/${loanId}`,
+            });
+
+            expect(response.statusCode).toBe(200);
+
+            const body = JSON.parse(response.payload);
+            expect(body.data).toBeDefined();
+            expect(body.data.id).toBe(loanId);
+            expect(body.data.deleted_at).not.toBeNull();
+            expect(softDeleteSpy).toHaveBeenCalledWith(loanId);
+        });
+    });
+
 });
