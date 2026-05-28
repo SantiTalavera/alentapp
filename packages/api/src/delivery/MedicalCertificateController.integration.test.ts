@@ -246,3 +246,54 @@ describe('MedicalCertificate API — tests de integración (POST /api/v1/medical
         expect(body.error).toBe('El socio no existe');
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite de tests de integración
+// Ruta bajo prueba: PATCH /api/v1/medical-certificates/:id
+// ---------------------------------------------------------------------------
+
+describe('MedicalCertificate API — tests de integración (PATCH /api/v1/medical-certificates/:id)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    // TEST [1]: PATCH con expiry_date válida → 200 con MedicalCertificateDTO
+    it('debe retornar 200 y un MedicalCertificateDTO actualizado cuando el payload es válido', async () => {
+        const response = await app.inject({
+            method: 'PATCH',
+            url: '/api/v1/medical-certificates/cert-uuid-0001',
+            payload: {
+                expiry_date: '2027-01-01',
+            },
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: MedicalCertificateDTO };
+        expect(body.data).toBeDefined();
+        expect(body.data.id).toBe('cert-uuid-0001');
+    });
+
+    // TEST [2]: PATCH con member_id en body → 400
+    it('debe retornar 400 con el mensaje de error cuando el body contiene member_id', async () => {
+        const response = await app.inject({
+            method: 'PATCH',
+            url: '/api/v1/medical-certificates/cert-uuid-0001',
+            payload: {
+                member_id: 'otro-member-uuid',
+            },
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('El socio titular del certificado no puede modificarse');
+    });
+});
