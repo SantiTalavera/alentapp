@@ -22,16 +22,17 @@ function buildCertificateDTO(overrides: Partial<MedicalCertificateDTO> = {}): Me
 }
 
 // ---------------------------------------------------------------------------
-// Mock del caso de uso de creación
+// Mocks de casos de uso
 // ---------------------------------------------------------------------------
 
 const mockCreateUseCase = { execute: vi.fn() };
+const mockUpdateUseCase = { execute: vi.fn() };
 
 // El controlador requiere los 5 casos de uso; los restantes se pasan como stubs
-// vacíos ya que sus tests se implementarán en otras ramas.
+// vacíos ya que sus tests se implementarán en otras iteraciones.
 const controller = new MedicalCertificateController(
     mockCreateUseCase as any,
-    { execute: vi.fn() } as any, // UpdateMedicalCertificateUseCase — pendiente
+    mockUpdateUseCase as any,
     { execute: vi.fn() } as any, // DeleteMedicalCertificateUseCase — pendiente
     { execute: vi.fn() } as any, // GetMedicalCertificatesByMemberUseCase — pendiente
     { execute: vi.fn() } as any, // GetMedicalCertificateByIdUseCase — pendiente
@@ -52,13 +53,15 @@ function buildMockReply() {
 }
 
 // ---------------------------------------------------------------------------
-// Suite
+// Suite create() - Tests unitarios
 // ---------------------------------------------------------------------------
 
 describe('MedicalCertificateController — create()', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
+
+    // TEST [1] - Crea un certificado de manera exitosa
 
     it('debe responder con código 201 y el MedicalCertificateDTO cuando el certificado es creado exitosamente', async () => {
         const certificate = buildCertificateDTO();
@@ -80,6 +83,8 @@ describe('MedicalCertificateController — create()', () => {
         expect(mockReply.send).toHaveBeenCalledWith({ data: certificate });
     });
 
+    // TEST [2] - El socio no existe
+
     it('debe responder con código 404 cuando el UseCase informa que el socio no existe', async () => {
         mockCreateUseCase.execute.mockRejectedValueOnce(new Error('El socio no existe'));
 
@@ -98,6 +103,8 @@ describe('MedicalCertificateController — create()', () => {
         expect(mockReply.code).toHaveBeenCalledWith(404);
         expect(mockReply.send).toHaveBeenCalledWith({ error: 'El socio no existe' });
     });
+
+    // TEST [3] - La fecha de vencimiento es anterior a la fecha de emisión
 
     it('debe responder con código 400 cuando la fecha de vencimiento es anterior a la de emisión', async () => {
         mockCreateUseCase.execute.mockRejectedValueOnce(
@@ -122,6 +129,8 @@ describe('MedicalCertificateController — create()', () => {
         });
     });
 
+    // TEST [4] - La matrícula del médico está vacía
+
     it('debe responder con código 400 cuando la matrícula del médico está vacía', async () => {
         mockCreateUseCase.execute.mockRejectedValueOnce(
             new Error('La matrícula del médico es requerida'),
@@ -143,6 +152,8 @@ describe('MedicalCertificateController — create()', () => {
         expect(mockReply.send).toHaveBeenCalledWith({ error: 'La matrícula del médico es requerida' });
     });
 
+    // TEST [5] - El identificador del socio está vacío
+
     it('debe responder con código 400 cuando el identificador del socio está vacío', async () => {
         mockCreateUseCase.execute.mockRejectedValueOnce(new Error('El socio es requerido'));
 
@@ -162,6 +173,8 @@ describe('MedicalCertificateController — create()', () => {
         expect(mockReply.send).toHaveBeenCalledWith({ error: 'El socio es requerido' });
     });
 
+    // TEST [6] - Error inesperado del sistema
+
     it('debe responder con código 500 ante un error inesperado del sistema', async () => {
         mockCreateUseCase.execute.mockRejectedValueOnce(new Error('Prisma connection timeout'));
 
@@ -176,6 +189,90 @@ describe('MedicalCertificateController — create()', () => {
         };
 
         await controller.create(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno, reintente más tarde' });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite — update() - Tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('MedicalCertificateController — update()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1] — Actualiza un certificado de manera exitosa
+
+    it('debe llamar al caso de uso con id y body, y responder 200 con el MedicalCertificateDTO actualizado', async () => {
+        const certificate = buildCertificateDTO({ expiry_date: '2027-01-01T00:00:00.000Z' });
+        mockUpdateUseCase.execute.mockResolvedValueOnce(certificate);
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: CERT_UUID },
+            body: { expiry_date: '2027-01-01' },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockUpdateUseCase.execute).toHaveBeenCalledWith(CERT_UUID, { expiry_date: '2027-01-01' });
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: certificate });
+    });
+
+    // TEST [2] - El certificado médico no existe
+
+    it('debe responder con código 404 cuando el certificado médico no existe', async () => {
+        mockUpdateUseCase.execute.mockRejectedValueOnce(new Error('El certificado médico no existe'));
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: CERT_UUID },
+            body: { expiry_date: '2027-01-01' },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'El certificado médico no existe' });
+    });
+
+    // TEST [3] - El body está vacío
+
+    it('debe responder con código 400 cuando el body está vacío', async () => {
+        mockUpdateUseCase.execute.mockRejectedValueOnce(
+            new Error('Se debe enviar al menos un campo para actualizar'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: CERT_UUID },
+            body: {},
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Se debe enviar al menos un campo para actualizar',
+        });
+    });
+
+    // TEST [4] - Error inesperado del sistema
+
+    it('debe responder con código 500 ante un error inesperado del sistema', async () => {
+        mockUpdateUseCase.execute.mockRejectedValueOnce(new Error('Prisma connection timeout'));
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: CERT_UUID },
+            body: { doctor_license: 'MN-99999' },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
 
         expect(mockReply.code).toHaveBeenCalledWith(500);
         expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno, reintente más tarde' });
