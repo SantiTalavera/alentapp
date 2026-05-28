@@ -297,3 +297,32 @@ describe('MedicalCertificate API — tests de integración (PATCH /api/v1/medica
         expect(body.error).toBe('El socio titular del certificado no puede modificarse');
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite de tests de integración
+// Ruta bajo prueba: DELETE /api/v1/medical-certificates/:id
+// ---------------------------------------------------------------------------
+
+describe('MedicalCertificate API — tests de integración (DELETE /api/v1/medical-certificates/:id)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    // TEST [1]: DELETE con id existente → 204 sin body
+    it('debe retornar 204 y un payload vacío cuando el certificado existe y es eliminado exitosamente', async () => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/medical-certificates/cert-uuid-0001',
+        });
+
+        expect(response.statusCode).toBe(204);
+        expect(response.payload).toBe('');
+    });
+});

@@ -27,13 +27,14 @@ function buildCertificateDTO(overrides: Partial<MedicalCertificateDTO> = {}): Me
 
 const mockCreateUseCase = { execute: vi.fn() };
 const mockUpdateUseCase = { execute: vi.fn() };
+const mockDeleteUseCase = { execute: vi.fn() };
 
 // El controlador requiere los 5 casos de uso; los restantes se pasan como stubs
 // vacíos ya que sus tests se implementarán en otras iteraciones.
 const controller = new MedicalCertificateController(
     mockCreateUseCase as any,
     mockUpdateUseCase as any,
-    { execute: vi.fn() } as any, // DeleteMedicalCertificateUseCase — pendiente
+    mockDeleteUseCase as any,
     { execute: vi.fn() } as any, // GetMedicalCertificatesByMemberUseCase — pendiente
     { execute: vi.fn() } as any, // GetMedicalCertificateByIdUseCase — pendiente
 );
@@ -276,5 +277,48 @@ describe('MedicalCertificateController — update()', () => {
 
         expect(mockReply.code).toHaveBeenCalledWith(500);
         expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno, reintente más tarde' });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite — delete() - Tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('MedicalCertificateController — delete()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1] — Delete exitoso → 204 sin body
+
+    it('debe llamar al caso de uso con el id correcto y responder 204 sin body cuando el certificado existe', async () => {
+        mockDeleteUseCase.execute.mockResolvedValueOnce(undefined);
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: CERT_UUID },
+        };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockDeleteUseCase.execute).toHaveBeenCalledWith(CERT_UUID);
+        expect(mockReply.code).toHaveBeenCalledWith(204);
+        expect(mockReply.send).toHaveBeenCalledWith();
+    });
+
+    // TEST [2] — Certificado inexistente → 404
+
+    it('debe responder con código 404 cuando el certificado médico no existe', async () => {
+        mockDeleteUseCase.execute.mockRejectedValueOnce(new Error('El certificado médico no existe'));
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: CERT_UUID },
+        };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'El certificado médico no existe' });
     });
 });
