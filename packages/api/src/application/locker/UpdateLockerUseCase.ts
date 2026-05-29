@@ -11,7 +11,7 @@ export class UpdateLockerUseCase {
 
     async execute(id: string, data: UpdateLockerRequest): Promise<LockerDTO> {
         const current = await this.lockerRepository.findById(id);
-        if (!current) {
+        if (!current || !current.is_active) {
             throw new Error('casillero no encontrado');
         }
 
