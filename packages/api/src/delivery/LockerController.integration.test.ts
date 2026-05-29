@@ -67,6 +67,17 @@ vi.mock('../infrastructure/PostgresLockerRepository.js', () => {
                     is_active: false,
                 };
             }
+
+            async update(id: string, data: any) {
+                return {
+                    id,
+                    number: data.number !== undefined ? data.number : 123,
+                    location: data.location !== undefined ? data.location : 'Pasillo A',
+                    status: data.status !== undefined ? data.status : 'Available',
+                    member_id: data.member_id !== undefined ? data.member_id : null,
+                    is_active: true,
+                };
+            }
         }
     };
 });
@@ -150,6 +161,51 @@ describe('Locker API Integration Tests (Alta de Casillero)', () => {
             expect(response.statusCode).toBe(409);
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('el casillero ya fue dado de baja');
+        });
+    });
+
+    describe('PATCH /api/v1/lockers/:id', () => {
+        it('[3] PATCH /api/v1/lockers/:id asignando member_id con status Maintenance → 422', async () => {
+            const payload = {
+                number: 123,
+                location: 'Pasillo A',
+                status: 'Maintenance',
+                member_id: 'member-999',
+            };
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/lockers/uuid-active',
+                payload,
+            });
+
+            expect(response.statusCode).toBe(422);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('casillero en mantenimiento no puede tener socio');
+        });
+
+        it('[4] PATCH cambiando status y location → 200 con datos actualizados', async () => {
+            const payload = {
+                number: 123,
+                location: 'Nuevo Pasillo B',
+                status: 'Occupied',
+                member_id: 'member-123',
+            };
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: '/api/v1/lockers/uuid-active',
+                payload,
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+
+            expect(body.data).toBeDefined();
+            expect(body.data.id).toBe('uuid-active');
+            expect(body.data.location).toBe('Nuevo Pasillo B');
+            expect(body.data.status).toBe('Occupied');
+            expect(body.data.member_id).toBe('member-123');
         });
     });
 });
