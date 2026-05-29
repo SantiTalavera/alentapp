@@ -87,4 +87,56 @@ describe('LockerController (Responsabilidad: Manejo HTTP, Status Codes y Respues
             expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno' });
         });
     });
+
+    describe('delete (Baja de Casillero)', () => {
+        const mockDeleteRequest = {
+            params: { id: 'uuid-123' }
+        };
+
+        it('debe responder con HTTP 200 y los datos si la baja es exitosa', async () => {
+            const mockDeactivatedLocker = {
+                id: 'uuid-123',
+                number: 10,
+                location: 'Pasillo A',
+                status: 'Available',
+                member_id: null,
+                is_active: false
+            };
+
+            mockDeleteLockerUseCase.execute.mockResolvedValueOnce(mockDeactivatedLocker);
+
+            await controller.delete(mockDeleteRequest as any, mockReply as any);
+
+            expect(mockDeleteLockerUseCase.execute).toHaveBeenCalledWith('uuid-123');
+            expect(mockReply.code).toHaveBeenCalledWith(200);
+            expect(mockReply.send).toHaveBeenCalledWith({ data: mockDeactivatedLocker });
+        });
+
+        it('debe responder con HTTP 404 Not Found si el casillero no existe', async () => {
+            mockDeleteLockerUseCase.execute.mockRejectedValueOnce(new Error('casillero no encontrado'));
+
+            await controller.delete(mockDeleteRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(404);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'casillero no encontrado' });
+        });
+
+        it('debe responder con HTTP 409 Conflict si el casillero ya está inactivo', async () => {
+            mockDeleteLockerUseCase.execute.mockRejectedValueOnce(new Error('el casillero ya fue dado de baja'));
+
+            await controller.delete(mockDeleteRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(409);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'el casillero ya fue dado de baja' });
+        });
+
+        it('debe responder con HTTP 500 para cualquier otro error desconocido o de infraestructura', async () => {
+            mockDeleteLockerUseCase.execute.mockRejectedValueOnce(new Error('Prisma database failure'));
+
+            await controller.delete(mockDeleteRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(500);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno' });
+        });
+    });
 });

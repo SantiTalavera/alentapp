@@ -32,6 +32,41 @@ vi.mock('../infrastructure/PostgresLockerRepository.js', () => {
                     is_active: data.is_active !== undefined ? data.is_active : true,
                 };
             }
+
+            async findById(id: string) {
+                if (id === 'uuid-active') {
+                    return {
+                        id: 'uuid-active',
+                        number: 123,
+                        location: 'Pasillo A',
+                        status: 'Available',
+                        member_id: null,
+                        is_active: true,
+                    };
+                }
+                if (id === 'uuid-inactive') {
+                    return {
+                        id: 'uuid-inactive',
+                        number: 456,
+                        location: 'Pasillo B',
+                        status: 'Available',
+                        member_id: null,
+                        is_active: false,
+                    };
+                }
+                return null;
+            }
+
+            async deactivate(id: string) {
+                return {
+                    id,
+                    number: 123,
+                    location: 'Pasillo A',
+                    status: 'Available',
+                    member_id: null,
+                    is_active: false,
+                };
+            }
         }
     };
 });
@@ -88,6 +123,33 @@ describe('Locker API Integration Tests (Alta de Casillero)', () => {
             expect(response.statusCode).toBe(409);
             const body = JSON.parse(response.payload);
             expect(body.error).toBe('número de casillero ya registrado');
+        });
+    });
+
+    describe('DELETE /api/v1/lockers/:id', () => {
+        it('[5] DELETE /api/v1/lockers/:id activo → 200 con LockerDTO con is_active false', async () => {
+            const response = await app.inject({
+                method: 'DELETE',
+                url: '/api/v1/lockers/uuid-active',
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.payload);
+
+            expect(body.data).toBeDefined();
+            expect(body.data.id).toBe('uuid-active');
+            expect(body.data.is_active).toBe(false);
+        });
+
+        it('[6] DELETE locker ya inactivo → 409', async () => {
+            const response = await app.inject({
+                method: 'DELETE',
+                url: '/api/v1/lockers/uuid-inactive',
+            });
+
+            expect(response.statusCode).toBe(409);
+            const body = JSON.parse(response.payload);
+            expect(body.error).toBe('el casillero ya fue dado de baja');
         });
     });
 });
