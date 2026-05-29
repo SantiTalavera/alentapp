@@ -7,8 +7,7 @@
  *   - web-test   → Vite en localhost:5174
  *
  * Este script solo:
- *   1. Espera a que la API esté respondiendo (poll)
- *   2. Limpia la tabla de members para empezar desde un estado limpio
+ *    Espera a que la API esté respondiendo (poll)
  */
 import type { FullConfig } from '@playwright/test';
 import pg from 'pg';
@@ -39,35 +38,8 @@ async function waitForApi(): Promise<void> {
     throw new Error(`[E2E Setup] La API no respondió después de ${MAX_WAIT_MS / 1000}s. ¿Está corriendo docker-compose.e2e.yml?`);
 }
 
-async function cleanDatabase(): Promise<void> {
-    const client = new pg.Client({ connectionString: DB_URL });
-    await client.connect();
-
-    try {
-        // Obtenemos todas las tablas del esquema public que no sean de sistema o de prisma
-        const res = await client.query(`
-            SELECT tablename 
-            FROM pg_tables 
-            WHERE schemaname = 'public' 
-            AND tablename != '_prisma_migrations';
-        `);
-
-        const tables = res.rows.map(row => `"${row.tablename}"`).join(', ');
-
-        if (tables) {
-            await client.query(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`);
-            console.log(`[E2E Setup] Tablas limpiadas: ${tables}`);
-        }
-    } catch (error) {
-        console.error('[E2E Setup] Error al limpiar la base de datos:', error);
-        throw error;
-    } finally {
-        await client.end();
-    }
-}
 
 export default async function globalSetup(_config: FullConfig) {
     await waitForApi();
-    await cleanDatabase();
     console.log('[E2E Setup] Listo. Corriendo tests...');
 }
