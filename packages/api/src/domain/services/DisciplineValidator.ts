@@ -1,5 +1,7 @@
 import { CreateDisciplineRequest, MemberStatus, UpdateDisciplineRequest } from '@alentapp/shared';
 
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class DisciplineValidator {
     validateCreateRequest(data: CreateDisciplineRequest): void {
@@ -14,6 +16,12 @@ export class DisciplineValidator {
     validateMemberId(memberId: string): void {
         if (!memberId || memberId.trim() === '') {
             throw new Error('El socio es requerido');
+        }
+    }
+
+    validateDisciplineId(id: string): void {
+        if (!id || !UUID_REGEX.test(id.trim())) {
+            throw new Error('Identificador de disciplina inválido');
         }
     }
 

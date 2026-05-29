@@ -1,13 +1,6 @@
 import { DisciplineRepository } from '../../domain/DisciplineRepository.js';
 import { DisciplineValidator } from '../../domain/services/DisciplineValidator.js';
 
-const UUID_REGEX =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function isValidUuid(value: string): boolean {
-    return UUID_REGEX.test(value.trim());
-}
-
 export class DeleteDisciplineUseCase {
     constructor(
         private readonly disciplineRepository: DisciplineRepository,
@@ -15,10 +8,7 @@ export class DeleteDisciplineUseCase {
     ) {}
 
     async execute(id: string): Promise<void> {
-        if (!isValidUuid(id)) {
-            throw new Error('Identificador de disciplina inválido');
-        }
-
+        this.validator.validateDisciplineId(id);
         const normalizedId = id.trim();
 
         const discipline = await this.disciplineRepository.findById(normalizedId);
