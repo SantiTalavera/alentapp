@@ -197,4 +197,56 @@ describe('LockerController (Responsabilidad: Manejo HTTP, Status Codes y Respues
             expect(mockReply.send).toHaveBeenCalledWith({ error: 'casillero en mantenimiento no puede tener socio' });
         });
     });
+
+    describe('getById (Obtención de Casillero por ID)', () => {
+        const mockGetRequest = {
+            params: { id: 'uuid-123' }
+        };
+
+        it('debe responder con HTTP 200 y los datos del casillero si la consulta es exitosa', async () => {
+            const mockLocker = {
+                id: 'uuid-123',
+                number: 10,
+                location: 'Pasillo A',
+                status: 'Available',
+                member_id: null,
+                is_active: true
+            };
+
+            mockGetLockerByIdUseCase.execute.mockResolvedValueOnce(mockLocker);
+
+            await controller.getById(mockGetRequest as any, mockReply as any);
+
+            expect(mockGetLockerByIdUseCase.execute).toHaveBeenCalledWith('uuid-123');
+            expect(mockReply.code).toHaveBeenCalledWith(200);
+            expect(mockReply.send).toHaveBeenCalledWith({ data: mockLocker });
+        });
+
+        it('debe responder con HTTP 400 Bad Request si el id no tiene un formato válido', async () => {
+            mockGetLockerByIdUseCase.execute.mockRejectedValueOnce(new Error('formato de id inválido'));
+
+            await controller.getById(mockGetRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(400);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'formato de id inválido' });
+        });
+
+        it('debe responder con HTTP 404 Not Found si el casillero no existe o está inactivo', async () => {
+            mockGetLockerByIdUseCase.execute.mockRejectedValueOnce(new Error('casillero no encontrado'));
+
+            await controller.getById(mockGetRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(404);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'casillero no encontrado' });
+        });
+
+        it('debe responder con HTTP 500 para cualquier otro error desconocido o de infraestructura', async () => {
+            mockGetLockerByIdUseCase.execute.mockRejectedValueOnce(new Error('Database connectivity issue'));
+
+            await controller.getById(mockGetRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(500);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno' });
+        });
+    });
 });
