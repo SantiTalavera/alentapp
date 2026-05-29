@@ -104,6 +104,25 @@ describe('DisciplineValidator — tests unitarios', () => {
         });
     });
 
+    describe('validateDisciplineId()', () => {
+        it('debe pasar sin error cuando el id tiene formato UUID válido', () => {
+            expect(() => validator.validateDisciplineId(MEMBER_ID)).not.toThrow();
+            expect(() => validator.validateDisciplineId(`  ${MEMBER_ID}  `)).not.toThrow();
+        });
+
+        it('debe lanzar error cuando el id no tiene formato UUID válido', () => {
+            expect(() => validator.validateDisciplineId('id-invalido')).toThrow(
+                'Identificador de disciplina inválido',
+            );
+        });
+
+        it('debe lanzar error cuando el id está vacío', () => {
+            expect(() => validator.validateDisciplineId('   ')).toThrow(
+                'Identificador de disciplina inválido',
+            );
+        });
+    });
+
     describe('validateUpdateRequest()', () => {
         it('debe pasar sin error cuando se envía al menos un campo editable', () => {
             expect(() => validator.validateUpdateRequest({ reason: 'Nuevo motivo' })).not.toThrow();

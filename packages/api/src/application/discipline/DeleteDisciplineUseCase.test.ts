@@ -41,6 +41,7 @@ const mockDisciplineRepo = {
 const mockDisciplineValidator = {
     validateCreateRequest: vi.fn(),
     validateMemberId: vi.fn(),
+    validateDisciplineId: vi.fn(),
     validateReason: vi.fn(),
     validateDateRequired: vi.fn(),
     validateDateRange: vi.fn(),
@@ -59,6 +60,7 @@ describe('DeleteDisciplineUseCase — tests unitarios', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(mockDisciplineValidator.validateDisciplineId).mockReturnValue(undefined);
         vi.mocked(mockDisciplineValidator.isActive).mockReturnValue(true);
         vi.mocked(mockDisciplineRepo.findActiveTotalSuspensionsByMemberId).mockResolvedValue([]);
         vi.mocked(mockDisciplineRepo.delete).mockResolvedValue(undefined);
@@ -66,10 +68,15 @@ describe('DeleteDisciplineUseCase — tests unitarios', () => {
     });
 
     it('debe lanzar "Identificador de disciplina inválido" cuando el id no tiene formato UUID', async () => {
+        vi.mocked(mockDisciplineValidator.validateDisciplineId).mockImplementationOnce(() => {
+            throw new Error('Identificador de disciplina inválido');
+        });
+
         await expect(useCase.execute('id-invalido')).rejects.toThrow(
             'Identificador de disciplina inválido',
         );
 
+        expect(mockDisciplineValidator.validateDisciplineId).toHaveBeenCalledWith('id-invalido');
         expect(mockDisciplineRepo.findById).not.toHaveBeenCalled();
         expect(mockDisciplineRepo.delete).not.toHaveBeenCalled();
         expect(mockDisciplineRepo.deleteWithMemberStatus).not.toHaveBeenCalled();
@@ -83,6 +90,7 @@ describe('DeleteDisciplineUseCase — tests unitarios', () => {
         );
 
         expect(mockDisciplineRepo.findById).toHaveBeenCalledWith(DISCIPLINE_ID);
+        expect(mockDisciplineValidator.validateDisciplineId).toHaveBeenCalledWith(DISCIPLINE_ID);
         expect(mockDisciplineRepo.delete).not.toHaveBeenCalled();
         expect(mockDisciplineRepo.deleteWithMemberStatus).not.toHaveBeenCalled();
     });
