@@ -139,4 +139,62 @@ describe('LockerController (Responsabilidad: Manejo HTTP, Status Codes y Respues
             expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno' });
         });
     });
+
+    describe('update (Modificación de Casillero)', () => {
+        const mockUpdateRequest = {
+            params: { id: 'uuid-123' },
+            body: {
+                number: 20,
+                location: 'Pasillo A',
+                status: 'Available',
+                member_id: 'member-123'
+            }
+        };
+
+        it('debe responder con HTTP 200 y los datos si la actualización es exitosa', async () => {
+            const mockUpdatedLocker = {
+                id: 'uuid-123',
+                number: 20,
+                location: 'Pasillo A',
+                status: 'Available',
+                member_id: 'member-123',
+                is_active: true
+            };
+
+            mockUpdateLockerUseCase.execute.mockResolvedValueOnce(mockUpdatedLocker);
+
+            await controller.update(mockUpdateRequest as any, mockReply as any);
+
+            expect(mockUpdateLockerUseCase.execute).toHaveBeenCalledWith('uuid-123', mockUpdateRequest.body);
+            expect(mockReply.code).toHaveBeenCalledWith(200);
+            expect(mockReply.send).toHaveBeenCalledWith({ data: mockUpdatedLocker });
+        });
+
+        it('debe responder con HTTP 404 Not Found si el casillero no existe', async () => {
+            mockUpdateLockerUseCase.execute.mockRejectedValueOnce(new Error('casillero no encontrado'));
+
+            await controller.update(mockUpdateRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(404);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'casillero no encontrado' });
+        });
+
+        it('debe responder con HTTP 409 Conflict si el número de casillero ya está en uso', async () => {
+            mockUpdateLockerUseCase.execute.mockRejectedValueOnce(new Error('número ya está en uso'));
+
+            await controller.update(mockUpdateRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(409);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'número ya está en uso' });
+        });
+
+        it('debe responder con HTTP 422 Unprocessable Entity si se asigna socio a casillero en mantenimiento', async () => {
+            mockUpdateLockerUseCase.execute.mockRejectedValueOnce(new Error('casillero en mantenimiento no puede tener socio'));
+
+            await controller.update(mockUpdateRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(422);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: 'casillero en mantenimiento no puede tener socio' });
+        });
+    });
 });
