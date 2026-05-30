@@ -781,3 +781,146 @@ describe('Sport API — tests de integración (PATCH /api/v1/sports/:id)', () =>
     });
 });
 
+// ---------------------------------------------------------------------------
+// Suite de integración
+// Ruta bajo prueba: DELETE /api/v1/sports/:id
+// El registro permanece en memoria tras la baja lógica; solo se marca deleted_at.
+// ---------------------------------------------------------------------------
+
+describe('Sport API — tests de integración (DELETE /api/v1/sports/:id)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    beforeEach(() => {
+        resetSportStore();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    const basePayload = {
+        name: 'Futbol',
+        description: 'Deporte de equipo con pelota',
+        max_capacity: 22,
+        additional_price: 1000,
+        requires_medical_certificate: false,
+    };
+
+    // POST se utiliza como setup: crea un deporte real en el store y devuelve su id.
+    async function crearDeporte(payload = basePayload): Promise<string> {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/sports',
+            payload,
+        });
+        const body = JSON.parse(response.payload) as { data: SportDTO };
+        return body.data.id;
+    }
+
+    // TEST [1]: Baja lógica exitosa → 200 con deleted_at poblado.
+    // El registro sigue existiendo en memoria; solo se marca con la fecha de baja.
+    it('debe retornar 200 y poblar deleted_at al dar de baja un deporte activo', async () => {
+        const id = await crearDeporte();
+
+        const response = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/sports/${id}`,
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: SportDTO };
+        expect(body.data.deleted_at).not.toBeNull();
+        expect(body.data.id).toBe(id);
+        expect(body.data.name).toBe('Futbol');
+        expect(body.data.description).toBe('Deporte de equipo con pelota');
+        expect(body.data.max_capacity).toBe(22);
+        expect(body.data.additional_price).toBe(1000);
+        expect(body.data.requires_medical_certificate).toBe(false);
+    });
+
+    // TEST [2]: El deporte dado de baja no aparece en el listado activo.
+    // GET verifica su exclusión del catálogo operativo.
+    it('debe excluir del listado activo un deporte dado de baja', async () => {
+        const id = await crearDeporte();
+
+        await app.inject({ method: 'DELETE', url: `/api/v1/sports/${id}` });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/sports',
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: SportDTO[] };
+        const ids = body.data.map((s) => s.id);
+        expect(ids).not.toContain(id);
+    });
+
+    // TEST [3]: GET por id de un deporte ya dado de baja → 404.
+    it('debe retornar 404 al consultar por id un deporte dado de baja', async () => {
+        const id = await crearDeporte();
+
+        await app.inject({ method: 'DELETE', url: `/api/v1/sports/${id}` });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/sports/${id}`,
+        });
+
+        expect(response.statusCode).toBe(404);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Deporte no encontrado');
+    });
+
+    // TEST [4]: Segundo DELETE sobre el mismo deporte → 409.
+    it('debe retornar 409 cuando el deporte ya fue dado de baja', async () => {
+        const id = await crearDeporte();
+
+        await app.inject({ method: 'DELETE', url: `/api/v1/sports/${id}` });
+
+        const second = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/sports/${id}`,
+        });
+
+        expect(second.statusCode).toBe(409);
+
+        const body = JSON.parse(second.payload) as { error: string };
+        expect(body.error).toBe('El deporte ya fue dado de baja');
+    });
+
+    // TEST [5]: ID con formato inválido → 400.
+    it('debe retornar 400 cuando el identificador tiene formato inválido', async () => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/sports/no-es-un-uuid',
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Identificador de deporte inválido');
+    });
+
+    // TEST [6]: UUID válido pero sin registro en el store → 404.
+    it('debe retornar 404 cuando el deporte no existe', async () => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/sports/00000000-0000-4000-8000-000000000099',
+        });
+
+        expect(response.statusCode).toBe(404);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Deporte no encontrado');
+    });
+});
+
