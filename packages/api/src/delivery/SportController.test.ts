@@ -374,3 +374,86 @@ describe('SportController — update()', () => {
         expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno, reintente más tarde' });
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite delete() - Tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('SportController — delete()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1]: Baja lógica exitosa → 200 con DTO actualizado.
+    it('debe responder 200 con el deporte dado de baja', async () => {
+        const sportDTO = buildSportDTO({ deleted_at: '2026-05-30T12:00:00.000Z' });
+        mockDeleteSportUseCase.execute.mockResolvedValueOnce(sportDTO);
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockDeleteSportUseCase.execute).toHaveBeenCalledWith(SPORT_ID);
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: sportDTO });
+    });
+
+    // TEST [2]: ID con formato inválido → 400.
+    it('debe responder 400 cuando el identificador es inválido', async () => {
+        mockDeleteSportUseCase.execute.mockRejectedValueOnce(
+            new Error('Identificador de deporte inválido'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: 'no-es-uuid' } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Identificador de deporte inválido' });
+    });
+
+    // TEST [3]: Deporte inexistente → 404.
+    it('debe responder 404 cuando el deporte no existe', async () => {
+        mockDeleteSportUseCase.execute.mockRejectedValueOnce(
+            new Error('Deporte no encontrado'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Deporte no encontrado' });
+    });
+
+    // TEST [4]: Deporte ya dado de baja → 409.
+    it('debe responder 409 cuando el deporte ya fue dado de baja', async () => {
+        mockDeleteSportUseCase.execute.mockRejectedValueOnce(
+            new Error('El deporte ya fue dado de baja'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(409);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'El deporte ya fue dado de baja' });
+    });
+
+    // TEST [5]: Error inesperado de infraestructura → 500.
+    it('debe responder 500 ante un error inesperado', async () => {
+        mockDeleteSportUseCase.execute.mockRejectedValueOnce(new Error('fallo db'));
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno, reintente más tarde' });
+    });
+});
