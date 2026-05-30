@@ -48,8 +48,12 @@ vi.mock('../infrastructure/PostgresSportRepository.js', () => ({
             return mockSports.find((s) => s.id === id) ?? null;
         }
 
-        async update(_id: string, _data: unknown): Promise<SportDTO> {
-            return mockSports[0];
+        async update(id: string, data: unknown): Promise<SportDTO> {
+            const idx = mockSports.findIndex((s) => s.id === id);
+            if (idx === -1) throw new Error('Deporte no encontrado');
+            // Aplica solo los campos recibidos, preservando el resto del DTO.
+            mockSports[idx] = { ...mockSports[idx], ...(data as Partial<SportDTO>) };
+            return mockSports[idx];
         }
 
         async softDelete(id: string): Promise<SportDTO> {
@@ -529,6 +533,251 @@ describe('Sport API — tests de integración (GET /api/v1/sports/:id)', () => {
 
         const body = JSON.parse(response.payload) as { error: string };
         expect(body.error).toBe('Deporte no encontrado');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite de integración
+// Ruta bajo prueba: PATCH /api/v1/sports/:id
+// ---------------------------------------------------------------------------
+
+describe('Sport API — tests de integración (PATCH /api/v1/sports/:id)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    beforeEach(() => {
+        resetSportStore();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    const basePayload = {
+        name: 'Futbol',
+        description: 'Deporte de equipo con pelota',
+        max_capacity: 22,
+        additional_price: 1000,
+        requires_medical_certificate: false,
+    };
+
+    // POST como setup del recurso: crea un deporte real en el store y devuelve su id.
+    async function crearDeporte(payload = basePayload): Promise<string> {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/v1/sports',
+            payload,
+        });
+        const body = JSON.parse(response.payload) as { data: SportDTO };
+        return body.data.id;
+    }
+
+    // TEST [1]: Actualización exitosa de todos los campos editables.
+    it('debe retornar 200 y actualizar los campos permitidos', async () => {
+        // POST como setup del recurso: se crea el deporte para obtener su id real.
+        const id = await crearDeporte();
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${id}`,
+            payload: {
+                description: 'Descripción actualizada',
+                max_capacity: 50,
+                additional_price: 200,
+                requires_medical_certificate: true,
+            },
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: SportDTO };
+        expect(body.data.description).toBe('Descripción actualizada');
+        expect(body.data.max_capacity).toBe(50);
+        expect(body.data.additional_price).toBe(200);
+        expect(body.data.requires_medical_certificate).toBe(true);
+    });
+
+    // TEST [2]: Los valores falsy 0 y false son válidos y no deben descartarse en la actualización.
+    it('debe conservar additional_price igual a cero y requires_medical_certificate igual a false', async () => {
+        const id = await crearDeporte({
+            ...basePayload,
+            additional_price: 500,
+            requires_medical_certificate: true,
+        });
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${id}`,
+            payload: { additional_price: 0, requires_medical_certificate: false },
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: SportDTO };
+        expect(body.data.additional_price).toBe(0);
+        expect(body.data.requires_medical_certificate).toBe(false);
+    });
+
+    // TEST [3]: Body vacío → sin campos para actualizar.
+    it('debe retornar 400 cuando el body está vacío', async () => {
+        const id = await crearDeporte();
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${id}`,
+            payload: {},
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Se requiere al menos un campo para actualizar');
+    });
+
+    // TEST [4]: name es inmutable luego de la creación.
+    it('debe retornar 400 cuando se intenta modificar el nombre', async () => {
+        const id = await crearDeporte();
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${id}`,
+            payload: { name: 'Otro deporte' },
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('El nombre del deporte no puede modificarse');
+    });
+
+    // TEST [5]: Campo no permitido.
+    // La implementación trata deleted_at con su propio mensaje (no el genérico).
+    it('debe retornar 400 cuando se intenta modificar un campo no permitido', async () => {
+        const id = await crearDeporte();
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${id}`,
+            payload: { deleted_at: '2026-01-01T00:00:00.000Z' },
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('No se puede modificar el campo deleted_at');
+    });
+
+    // TEST [6]: max_capacity inválido (it.each con mensajes distintos por caso).
+    it.each([
+        [0, 'La capacidad máxima debe ser mayor a cero'],
+        [1.5, 'La capacidad máxima debe ser un número entero'],
+    ] as Array<[number, string]>)(
+        'debe retornar 400 cuando max_capacity es inválido (%s)',
+        async (max_capacity, expectedError) => {
+            const id = await crearDeporte();
+
+            const response = await app.inject({
+                method: 'PATCH',
+                url: `/api/v1/sports/${id}`,
+                payload: { max_capacity },
+            });
+
+            expect(response.statusCode).toBe(400);
+
+            const body = JSON.parse(response.payload) as { error: string };
+            expect(body.error).toBe(expectedError);
+        },
+    );
+
+    // TEST [7]: additional_price negativo.
+    it('debe retornar 400 cuando additional_price es negativo', async () => {
+        const id = await crearDeporte();
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${id}`,
+            payload: { additional_price: -1 },
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('El precio adicional no puede ser negativo');
+    });
+
+    // TEST [8]: requires_medical_certificate debe ser booleano.
+    it('debe retornar 400 cuando requires_medical_certificate no es booleano', async () => {
+        const id = await crearDeporte();
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${id}`,
+            payload: { requires_medical_certificate: 'si' },
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('El campo requiere certificado médico debe ser verdadero o falso');
+    });
+
+    // TEST [9]: ID con formato inválido.
+    it('debe retornar 400 cuando el identificador tiene formato inválido', async () => {
+        const response = await app.inject({
+            method: 'PATCH',
+            url: '/api/v1/sports/no-es-un-uuid',
+            payload: { description: 'x' },
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Identificador de deporte inválido');
+    });
+
+    // TEST [10]: UUID válido pero sin registro en el store.
+    it('debe retornar 404 cuando el deporte no existe', async () => {
+        const response = await app.inject({
+            method: 'PATCH',
+            url: '/api/v1/sports/00000000-0000-4000-8000-000000000099',
+            payload: { description: 'x' },
+        });
+
+        expect(response.statusCode).toBe(404);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Deporte no encontrado');
+    });
+
+    // TEST [11]: Deporte con baja lógica.
+    // Preparación manual de un deporte eliminado en el store para simular baja lógica
+    // sin necesidad de implementar ni ejecutar el endpoint DELETE.
+    it('debe retornar 409 cuando el deporte fue eliminado lógicamente', async () => {
+        const eliminadoId = buildMockSportId();
+        mockSports.push({
+            id: eliminadoId,
+            name: 'Karate',
+            description: 'Arte marcial',
+            max_capacity: 15,
+            additional_price: 600,
+            requires_medical_certificate: true,
+            deleted_at: '2024-01-01T00:00:00.000Z',
+        });
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/sports/${eliminadoId}`,
+            payload: { description: 'Actualizado' },
+        });
+
+        expect(response.statusCode).toBe(409);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('No se puede modificar un deporte eliminado');
     });
 });
 

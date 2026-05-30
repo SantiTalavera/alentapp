@@ -253,3 +253,124 @@ describe('SportController — getById()', () => {
         expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno, reintente más tarde' });
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite update() - Tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('SportController — update()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1]: Actualización exitosa.
+    it('debe responder 200 con el deporte actualizado', async () => {
+        const sportDTO = buildSportDTO({ description: 'Actualizado' });
+        mockUpdateSportUseCase.execute.mockResolvedValueOnce(sportDTO);
+
+        const mockReply = buildMockReply();
+        const mockRequest = {
+            params: { id: SPORT_ID },
+            body: { description: 'Actualizado' },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: sportDTO });
+    });
+
+    // TEST [2]: ID con formato inválido.
+    it('debe responder 400 cuando el identificador es inválido', async () => {
+        mockUpdateSportUseCase.execute.mockRejectedValueOnce(
+            new Error('Identificador de deporte inválido'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: 'no-es-uuid' }, body: { description: 'x' } };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Identificador de deporte inválido' });
+    });
+
+    // TEST [3]: Body sin campos editables.
+    it('debe responder 400 cuando el body es inválido', async () => {
+        mockUpdateSportUseCase.execute.mockRejectedValueOnce(
+            new Error('Se requiere al menos un campo para actualizar'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID }, body: {} };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Se requiere al menos un campo para actualizar',
+        });
+    });
+
+    // TEST [4]: Intento de modificar name (campo inmutable).
+    it('debe responder 400 cuando se intenta modificar el nombre', async () => {
+        mockUpdateSportUseCase.execute.mockRejectedValueOnce(
+            new Error('El nombre del deporte no puede modificarse'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID }, body: { name: 'Nuevo' } };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'El nombre del deporte no puede modificarse',
+        });
+    });
+
+    // TEST [5]: Deporte inexistente.
+    it('debe responder 404 cuando el deporte no existe', async () => {
+        mockUpdateSportUseCase.execute.mockRejectedValueOnce(
+            new Error('Deporte no encontrado'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID }, body: { description: 'x' } };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Deporte no encontrado' });
+    });
+
+    // TEST [6]: Deporte con baja lógica.
+    it('debe responder 409 cuando el deporte fue eliminado', async () => {
+        mockUpdateSportUseCase.execute.mockRejectedValueOnce(
+            new Error('No se puede modificar un deporte eliminado'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID }, body: { description: 'x' } };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(409);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'No se puede modificar un deporte eliminado',
+        });
+    });
+
+    // TEST [7]: Error de infraestructura no mapeado.
+    it('debe responder 500 ante un error inesperado', async () => {
+        mockUpdateSportUseCase.execute.mockRejectedValueOnce(new Error('fallo db'));
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID }, body: { description: 'x' } };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno, reintente más tarde' });
+    });
+});
