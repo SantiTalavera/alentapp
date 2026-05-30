@@ -37,7 +37,6 @@ function buildSportDTO(overrides: Partial<SportDTO> = {}): SportDTO {
 // ---------------------------------------------------------------------------
 
 // Se mockean todos los casos de uso requeridos por el constructor.
-// En esta rama solo se configura el comportamiento de create().
 const mockNewSportUseCase = { execute: vi.fn() };
 const mockGetSportsUseCase = { execute: vi.fn() };
 const mockGetSportByIdUseCase = { execute: vi.fn() };
@@ -138,5 +137,119 @@ describe('SportController — create()', () => {
         expect(mockReply.send).toHaveBeenCalledWith({
             error: 'Error interno, reintente más tarde',
         });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite getAll() - Tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('SportController — getAll()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1]: Listado con deportes activos
+    it('debe responder 200 con la lista de deportes', async () => {
+        const sports = [buildSportDTO(), buildSportDTO({ id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901', name: 'Natación' })];
+        mockGetSportsUseCase.execute.mockResolvedValueOnce(sports);
+
+        const mockReply = buildMockReply();
+
+        await controller.getAll({} as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: sports });
+    });
+
+    // TEST [2]: Sin deportes activos → array vacío
+    it('debe responder 200 con un array vacío cuando no existen deportes activos', async () => {
+        mockGetSportsUseCase.execute.mockResolvedValueOnce([]);
+
+        const mockReply = buildMockReply();
+
+        await controller.getAll({} as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: [] });
+    });
+
+    // TEST [3]: Error inesperado de infraestructura
+    it('debe responder 500 ante un error inesperado al listar', async () => {
+        mockGetSportsUseCase.execute.mockRejectedValueOnce(new Error('fallo db'));
+
+        const mockReply = buildMockReply();
+
+        await controller.getAll({} as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno, reintente más tarde' });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite getById() - Tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('SportController — getById()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1]: Deporte encontrado y activo
+    it('debe responder 200 con el deporte cuando existe', async () => {
+        const sportDTO = buildSportDTO();
+        mockGetSportByIdUseCase.execute.mockResolvedValueOnce(sportDTO);
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID } };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: sportDTO });
+    });
+
+    // TEST [2]: Identificador con formato inválido
+    it('debe responder 400 cuando el identificador es inválido', async () => {
+        mockGetSportByIdUseCase.execute.mockRejectedValueOnce(
+            new Error('Identificador de deporte inválido'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: 'no-es-uuid' } };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Identificador de deporte inválido' });
+    });
+
+    // TEST [3]: Deporte no encontrado o dado de baja lógica
+    it('debe responder 404 cuando el deporte no existe o no está disponible', async () => {
+        mockGetSportByIdUseCase.execute.mockRejectedValueOnce(
+            new Error('Deporte no encontrado'),
+        );
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID } };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Deporte no encontrado' });
+    });
+
+    // TEST [4]: Error inesperado de infraestructura
+    it('debe responder 500 ante un error inesperado al consultar', async () => {
+        mockGetSportByIdUseCase.execute.mockRejectedValueOnce(new Error('fallo db'));
+
+        const mockReply = buildMockReply();
+        const mockRequest = { params: { id: SPORT_ID } };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Error interno, reintente más tarde' });
     });
 });

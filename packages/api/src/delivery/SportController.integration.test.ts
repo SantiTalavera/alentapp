@@ -321,3 +321,214 @@ describe('Sport API — tests de integración (POST /api/v1/sports)', () => {
         expect(body.error).toBe('El campo requiere certificado médico debe ser verdadero o falso');
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite de integración
+// Ruta bajo prueba: GET /api/v1/sports
+// El listado operativo excluye deportes con baja lógica (deleted_at !== null).
+// ---------------------------------------------------------------------------
+
+describe('Sport API — tests de integración (GET /api/v1/sports)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    beforeEach(() => {
+        resetSportStore();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    const basePayload = {
+        name: 'Futbol',
+        description: 'Deporte de equipo con pelota',
+        max_capacity: 22,
+        additional_price: 1000,
+        requires_medical_certificate: false,
+    };
+
+    // TEST [1]: Sin deportes creados → array vacío
+    it('debe retornar 200 con un array vacío cuando no hay deportes activos', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/sports',
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: SportDTO[] };
+        expect(body.data).toEqual([]);
+    });
+
+    // TEST [2]: Deportes activos creados previamente aparecen en el listado
+    it('debe retornar 200 con los deportes activos', async () => {
+        await app.inject({
+            method: 'POST',
+            url: '/api/v1/sports',
+            payload: basePayload,
+        });
+        await app.inject({
+            method: 'POST',
+            url: '/api/v1/sports',
+            payload: { ...basePayload, name: 'Tenis' },
+        });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/sports',
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: SportDTO[] };
+        expect(body.data).toHaveLength(2);
+        expect(body.data.map((s) => s.name)).toContain('Futbol');
+        expect(body.data.map((s) => s.name)).toContain('Tenis');
+    });
+
+    // TEST [3]: Deportes con baja lógica quedan excluidos del listado operativo
+    it('debe excluir deportes eliminados lógicamente del listado', async () => {
+        // Insertar un deporte activo y uno con deleted_at poblado directamente en el store
+        const activoId = buildMockSportId();
+        const eliminadoId = buildMockSportId();
+        mockSports.push({
+            id: activoId,
+            name: 'Natación',
+            description: 'Deporte acuático',
+            max_capacity: 30,
+            additional_price: 800,
+            requires_medical_certificate: false,
+            deleted_at: null,
+        });
+        mockSports.push({
+            id: eliminadoId,
+            name: 'Karate',
+            description: 'Arte marcial',
+            max_capacity: 15,
+            additional_price: 600,
+            requires_medical_certificate: true,
+            deleted_at: '2024-01-01T00:00:00.000Z',
+        });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/sports',
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: SportDTO[] };
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].name).toBe('Natación');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite de integración
+// Ruta bajo prueba: GET /api/v1/sports/:id
+// Un deporte con baja lógica debe responder como no disponible (404).
+// ---------------------------------------------------------------------------
+
+describe('Sport API — tests de integración (GET /api/v1/sports/:id)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    beforeEach(() => {
+        resetSportStore();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    const basePayload = {
+        name: 'Futbol',
+        description: 'Deporte de equipo con pelota',
+        max_capacity: 22,
+        additional_price: 1000,
+        requires_medical_certificate: false,
+    };
+
+    // TEST [1]: Deporte existente y activo → 200 con DTO
+    it('debe retornar 200 con el deporte cuando existe y está activo', async () => {
+        const postResponse = await app.inject({
+            method: 'POST',
+            url: '/api/v1/sports',
+            payload: basePayload,
+        });
+        const created = JSON.parse(postResponse.payload) as { data: SportDTO };
+        const id = created.data.id;
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/sports/${id}`,
+        });
+
+        expect(response.statusCode).toBe(200);
+
+        const body = JSON.parse(response.payload) as { data: SportDTO };
+        expect(body.data.id).toBe(id);
+        expect(body.data.name).toBe('Futbol');
+        expect(body.data.deleted_at).toBeNull();
+    });
+
+    // TEST [2]: ID con formato inválido (no UUID) → 400
+    it('debe retornar 400 cuando el identificador tiene formato inválido', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/sports/no-es-un-uuid',
+        });
+
+        expect(response.statusCode).toBe(400);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Identificador de deporte inválido');
+    });
+
+    // TEST [3]: UUID válido pero sin registro → 404
+    it('debe retornar 404 cuando el deporte no existe', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/sports/00000000-0000-4000-8000-000000000099',
+        });
+
+        expect(response.statusCode).toBe(404);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Deporte no encontrado');
+    });
+
+    // TEST [4]: Deporte con baja lógica debe responder como no disponible
+    it('debe retornar 404 cuando el deporte fue eliminado lógicamente', async () => {
+        const eliminadoId = buildMockSportId();
+        mockSports.push({
+            id: eliminadoId,
+            name: 'Karate',
+            description: 'Arte marcial',
+            max_capacity: 15,
+            additional_price: 600,
+            requires_medical_certificate: true,
+            deleted_at: '2024-01-01T00:00:00.000Z',
+        });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/sports/${eliminadoId}`,
+        });
+
+        expect(response.statusCode).toBe(404);
+
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Deporte no encontrado');
+    });
+});
+
