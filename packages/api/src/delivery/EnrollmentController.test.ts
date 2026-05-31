@@ -160,3 +160,144 @@ describe('EnrollmentController — create()', () => {
         });
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite getAll() — tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('EnrollmentController — getAll()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1]: Listado exitoso.
+    it('debe responder 200 con la lista de inscripciones', async () => {
+        const enrollments = [buildEnrollmentDTO()];
+        mockGetEnrollmentsUseCase.execute.mockResolvedValueOnce(enrollments);
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { query: {} };
+
+        await controller.getAll(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: enrollments });
+    });
+
+    // TEST [2]: Repositorio vacío → array vacío.
+    it('debe responder 200 con un array vacío cuando no existen inscripciones operativas', async () => {
+        mockGetEnrollmentsUseCase.execute.mockResolvedValueOnce([]);
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { query: {} };
+
+        await controller.getAll(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: [] });
+    });
+
+    // TEST [3-5]: Filtros con formato inválido → 400 Bad Request.
+    it.each([
+        'Identificador de socio inválido',
+        'Identificador de deporte inválido',
+        'Filtro de vigencia inválido',
+    ] as const)(
+        'debe responder 400 cuando el use case lanza "%s"',
+        async (message) => {
+            mockGetEnrollmentsUseCase.execute.mockRejectedValueOnce(new Error(message));
+
+            const mockReply   = buildMockReply();
+            const mockRequest = { query: {} };
+
+            await controller.getAll(mockRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(400);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: message });
+        }
+    );
+
+    // TEST [6]: Error de infraestructura no mapeado → 500.
+    it('debe responder 500 ante un error inesperado al listar', async () => {
+        mockGetEnrollmentsUseCase.execute.mockRejectedValueOnce(new Error('fallo db'));
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { query: {} };
+
+        await controller.getAll(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Error interno, reintente más tarde',
+        });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite getById() — tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('EnrollmentController — getById()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1]: Consulta exitosa.
+    it('debe responder 200 con la inscripción cuando existe', async () => {
+        const dto = buildEnrollmentDTO();
+        mockGetEnrollmentByIdUseCase.execute.mockResolvedValueOnce(dto);
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { params: { id: VALID_ENROLLMENT_UUID } };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: dto });
+    });
+
+    // TEST [2]: Identificador inválido → 400.
+    it('debe responder 400 cuando el identificador es inválido', async () => {
+        mockGetEnrollmentByIdUseCase.execute.mockRejectedValueOnce(
+            new Error('Identificador de inscripción inválido')
+        );
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { params: { id: 'no-uuid' } };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Identificador de inscripción inválido' });
+    });
+
+    // TEST [3]: Inscripción inexistente o eliminada → 404.
+    it('debe responder 404 cuando la inscripción no existe o fue eliminada', async () => {
+        mockGetEnrollmentByIdUseCase.execute.mockRejectedValueOnce(
+            new Error('Inscripción no encontrada')
+        );
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { params: { id: VALID_ENROLLMENT_UUID } };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Inscripción no encontrada' });
+    });
+
+    // TEST [4]: Error de infraestructura no mapeado → 500.
+    it('debe responder 500 ante un error inesperado al consultar', async () => {
+        mockGetEnrollmentByIdUseCase.execute.mockRejectedValueOnce(new Error('fallo db'));
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { params: { id: VALID_ENROLLMENT_UUID } };
+
+        await controller.getById(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Error interno, reintente más tarde',
+        });
+    });
+});
