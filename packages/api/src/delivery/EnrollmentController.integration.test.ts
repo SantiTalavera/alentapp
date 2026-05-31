@@ -889,3 +889,289 @@ describe('Enrollment API — tests de integración (GET /api/v1/enrollments/:id)
         expect(body.error).toBe('Inscripción no encontrada');
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite de integración
+// Ruta bajo prueba: PATCH /api/v1/enrollments/:id
+// Diferencia clave entre desactivación y reactivación:
+//   - Desactivar (true→false): no revalida socio ni deporte; no requiere dependencias.
+//   - Reactivar (false→true): consulta member, sport, duplicados y cupo.
+// enrollment_date representa el historial de la inscripción y debe conservarse siempre.
+// ---------------------------------------------------------------------------
+
+describe('Enrollment API — tests de integración (PATCH /api/v1/enrollments/:id)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    beforeEach(() => {
+        resetEnrollmentStore();
+        resetMemberStore();
+        resetSportStore();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    // TEST [1]: Desactivación exitosa.
+    // enrollment_date representa historial y debe conservarse sin modificaciones.
+    it('debe retornar 200 y desactivar una inscripción vigente', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true })
+        );
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: false },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO };
+        expect(body.data.is_active).toBe(false);
+        expect(body.data.enrollment_date).toBe('2026-01-01T00:00:00.000Z');
+    });
+
+    // TEST [2]: La desactivación no revalida socio ni deporte.
+    // Se puede desactivar aunque el socio o el deporte no estén en los stores.
+    it('debe desactivar sin revalidar socio ni deporte', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true })
+        );
+        // No se insertan member ni sport; la desactivación no los necesita.
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: false },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO };
+        expect(body.data.is_active).toBe(false);
+    });
+
+    // TEST [3]: Reactivación exitosa cuando se cumplen todas las condiciones operativas.
+    it('debe retornar 200 y reactivar una inscripción histórica cuando se cumplen las condiciones', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: false, deleted_at: null })
+        );
+        mockMembers.push(buildMemberDTO({ id: VALID_MEMBER_UUID, status: 'Activo' }));
+        mockSports.push(buildSportDTO({ id: VALID_SPORT_UUID, max_capacity: 10, deleted_at: null }));
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: true },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO };
+        expect(body.data.is_active).toBe(true);
+    });
+
+    // TEST [4]: Mismo valor actual → retorna la inscripción sin cambios estructurales en el store.
+    it('debe retornar 200 sin modificar la inscripción cuando se envía el mismo valor actual', async () => {
+        const enrollment = buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true });
+        mockEnrollments.push(enrollment);
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: true },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO };
+        expect(body.data.is_active).toBe(true);
+        expect(mockEnrollments).toHaveLength(1);
+    });
+
+    // TEST [5]: Body vacío → 400.
+    it('debe retornar 400 cuando el body está vacío', async () => {
+        mockEnrollments.push(buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID }));
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: {},
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Se requiere al menos un campo para actualizar');
+    });
+
+    // TEST [6]: Campo no permitido → 400.
+    it('debe retornar 400 cuando se intenta modificar un campo no permitido', async () => {
+        mockEnrollments.push(buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID }));
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { member_id: OTHER_MEMBER_UUID },
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Campo no permitido para modificación');
+    });
+
+    // TEST [7]: is_active como string → 400.
+    it('debe retornar 400 cuando is_active no es booleano', async () => {
+        mockEnrollments.push(buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID }));
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: 'false' },
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('El campo is_active debe ser booleano');
+    });
+
+    // TEST [8]: ID con formato inválido → 400.
+    it('debe retornar 400 cuando el identificador tiene formato inválido', async () => {
+        const response = await app.inject({
+            method: 'PATCH',
+            url: '/api/v1/enrollments/no-uuid',
+            payload: { is_active: false },
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Identificador de inscripción inválido');
+    });
+
+    // TEST [9]: UUID válido pero inexistente → 404.
+    it('debe retornar 404 cuando la inscripción no existe', async () => {
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${NONEXISTENT_UUID}`,
+            payload: { is_active: false },
+        });
+
+        expect(response.statusCode).toBe(404);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Inscripción no encontrada');
+    });
+
+    // TEST [10]: Inscripción eliminada lógicamente → 409.
+    it('debe retornar 409 cuando la inscripción está eliminada lógicamente', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({
+                id: VALID_ENROLLMENT_UUID,
+                deleted_at: '2025-01-01T00:00:00.000Z',
+            })
+        );
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: true },
+        });
+
+        expect(response.statusCode).toBe(409);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('No se puede modificar una inscripción eliminada');
+    });
+
+    // TEST [11]: Socio no habilitado al reactivar → 409.
+    it('debe retornar 409 cuando el socio no está habilitado para reactivar', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: false, deleted_at: null })
+        );
+        mockMembers.push(buildMemberDTO({ id: VALID_MEMBER_UUID, status: 'Moroso' }));
+        mockSports.push(buildSportDTO({ id: VALID_SPORT_UUID, deleted_at: null }));
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: true },
+        });
+
+        expect(response.statusCode).toBe(409);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('El socio no está habilitado');
+    });
+
+    // TEST [12]: Deporte no disponible al reactivar → 409.
+    it('debe retornar 409 cuando el deporte no está disponible para reactivar', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: false, deleted_at: null })
+        );
+        mockMembers.push(buildMemberDTO({ id: VALID_MEMBER_UUID, status: 'Activo' }));
+        mockSports.push(buildSportDTO({ id: VALID_SPORT_UUID, deleted_at: '2025-01-01T00:00:00.000Z' }));
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: true },
+        });
+
+        expect(response.statusCode).toBe(409);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('El deporte no está disponible');
+    });
+
+    // TEST [13]: Duplicado activo con ID distinto al reactivar → 409.
+    it('debe retornar 409 cuando existe otra inscripción activa para el mismo socio y deporte', async () => {
+        // Inscripción histórica a reactivar.
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: false, deleted_at: null })
+        );
+        // Otra inscripción activa con ID distinto para el mismo socio y deporte.
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: SECOND_ENROLLMENT_UUID, is_active: true, deleted_at: null })
+        );
+        mockMembers.push(buildMemberDTO({ id: VALID_MEMBER_UUID, status: 'Activo' }));
+        mockSports.push(buildSportDTO({ id: VALID_SPORT_UUID, deleted_at: null }));
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: true },
+        });
+
+        expect(response.statusCode).toBe(409);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Ya existe una inscripción activa para este deporte');
+    });
+
+    // TEST [14]: Cupo completo al reactivar → 409.
+    // Se usa OTHER_MEMBER_UUID para la inscripción que ocupa el cupo: así el check de
+    // duplicado (mismo member+sport) no intercepta el escenario antes del conteo de cupo.
+    it('debe retornar 409 cuando el cupo está completo al intentar reactivar', async () => {
+        // Inscripción histórica a reactivar.
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: false, deleted_at: null })
+        );
+        // Inscripción activa de otro socio que ocupa el único cupo disponible.
+        mockEnrollments.push(
+            buildEnrollmentDTO({
+                id: SECOND_ENROLLMENT_UUID,
+                member_id: OTHER_MEMBER_UUID,
+                is_active: true,
+                deleted_at: null,
+            })
+        );
+        mockMembers.push(buildMemberDTO({ id: VALID_MEMBER_UUID, status: 'Activo' }));
+        mockSports.push(buildSportDTO({ id: VALID_SPORT_UUID, max_capacity: 1, deleted_at: null }));
+
+        const response = await app.inject({
+            method: 'PATCH',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+            payload: { is_active: true },
+        });
+
+        expect(response.statusCode).toBe(409);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('No hay cupo disponible para este deporte');
+    });
+});
