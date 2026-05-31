@@ -1175,3 +1175,231 @@ describe('Enrollment API — tests de integración (PATCH /api/v1/enrollments/:i
         expect(body.error).toBe('No hay cupo disponible para este deporte');
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite de integración
+// Ruta bajo prueba: DELETE /api/v1/enrollments/:id
+// Diferencia entre desactivar (PATCH is_active=false) y dar de baja (DELETE):
+//   - Desactivar: el registro queda con is_active=false, deleted_at=null; puede reactivarse.
+//   - Dar de baja: el registro queda con deleted_at poblado; no puede volver a eliminarse.
+// En ambos casos el registro continúa presente en el store (baja lógica, no física).
+// ---------------------------------------------------------------------------
+
+describe('Enrollment API — tests de integración (DELETE /api/v1/enrollments/:id)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    beforeEach(() => {
+        resetEnrollmentStore();
+        resetMemberStore();
+        resetSportStore();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    // TEST [1]: Baja lógica exitosa de una inscripción vigente.
+    // El registro continúa presente en el store pero con deleted_at poblado.
+    it('debe retornar 200 y realizar la baja lógica de una inscripción vigente', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true, deleted_at: null })
+        );
+
+        const response = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO };
+        expect(body.data.deleted_at).not.toBeNull();
+        expect(body.data.is_active).toBe(false);
+        expect(body.data.member_id).toBe(VALID_MEMBER_UUID);
+        expect(body.data.sport_id).toBe(VALID_SPORT_UUID);
+        expect(body.data.enrollment_date).toBe('2026-01-01T00:00:00.000Z');
+        // El registro sigue existiendo en el store; solo fue marcado como eliminado.
+        expect(mockEnrollments).toHaveLength(1);
+        expect(mockEnrollments[0].deleted_at).not.toBeNull();
+    });
+
+    // TEST [2]: Baja lógica sobre una inscripción histórica (is_active=false, deleted_at=null).
+    // Una inscripción puede estar desactivada sin haber sido dada de baja formalmente.
+    it('debe permitir dar de baja una inscripción histórica no eliminada', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: false, deleted_at: null })
+        );
+
+        const response = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO };
+        expect(body.data.deleted_at).not.toBeNull();
+        expect(body.data.is_active).toBe(false);
+    });
+
+    // TEST [3]: Una inscripción dada de baja desaparece del listado operativo.
+    // findAll excluye registros con deleted_at !== null.
+    it('debe excluir del listado operativo una inscripción dada de baja', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true, deleted_at: null })
+        );
+
+        await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        const listResponse = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments',
+        });
+
+        expect(listResponse.statusCode).toBe(200);
+        const listBody = JSON.parse(listResponse.payload) as { data: EnrollmentDTO[] };
+        expect(listBody.data).toHaveLength(0);
+    });
+
+    // TEST [4]: Una inscripción dada de baja no es accesible por ID.
+    // GetEnrollmentByIdUseCase rechaza registros con deleted_at poblado.
+    it('debe retornar 404 al consultar por id una inscripción dada de baja', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true, deleted_at: null })
+        );
+
+        await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        const getResponse = await app.inject({
+            method: 'GET',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        expect(getResponse.statusCode).toBe(404);
+        const body = JSON.parse(getResponse.payload) as { error: string };
+        expect(body.error).toBe('Inscripción no encontrada');
+    });
+
+    // TEST [5]: No se puede dar de baja dos veces la misma inscripción.
+    it('debe retornar 409 cuando la inscripción ya fue eliminada', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true, deleted_at: null })
+        );
+
+        await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        const secondResponse = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        expect(secondResponse.statusCode).toBe(409);
+        const body = JSON.parse(secondResponse.payload) as { error: string };
+        expect(body.error).toBe('La inscripción ya fue eliminada');
+    });
+
+    // TEST [6]: ID con formato no UUID → 400.
+    it('debe retornar 400 cuando el identificador tiene formato inválido', async () => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: '/api/v1/enrollments/no-uuid',
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Identificador de inscripción inválido');
+    });
+
+    // TEST [7]: UUID válido pero sin registro en el store → 404.
+    it('debe retornar 404 cuando la inscripción no existe', async () => {
+        const response = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/enrollments/${NONEXISTENT_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(404);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Inscripción no encontrada');
+    });
+
+    // TEST [8]: Después de una baja lógica, el mismo socio puede volver a inscribirse.
+    // Una inscripción eliminada deja de contar como duplicado activo (findActiveByMemberAndSport
+    // solo considera is_active=true y deleted_at=null).
+    it('debe permitir una nueva inscripción del mismo socio y deporte después de la baja lógica', async () => {
+        mockMembers.push(buildMemberDTO({ id: VALID_MEMBER_UUID }));
+        mockSports.push(buildSportDTO({ id: VALID_SPORT_UUID, max_capacity: 10 }));
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true, deleted_at: null })
+        );
+
+        const deleteResponse = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+        expect(deleteResponse.statusCode).toBe(200);
+
+        const postResponse = await app.inject({
+            method: 'POST',
+            url: '/api/v1/enrollments',
+            payload: { member_id: VALID_MEMBER_UUID, sport_id: VALID_SPORT_UUID },
+        });
+        expect(postResponse.statusCode).toBe(201);
+
+        // El store debe contener la inscripción eliminada y la nueva inscripción activa.
+        expect(mockEnrollments).toHaveLength(2);
+        const deleted = mockEnrollments.find((e) => e.id === VALID_ENROLLMENT_UUID);
+        const created = mockEnrollments.find((e) => e.id !== VALID_ENROLLMENT_UUID);
+        expect(deleted?.deleted_at).not.toBeNull();
+        expect(created?.deleted_at).toBeNull();
+        expect(created?.is_active).toBe(true);
+    });
+
+    // TEST [9]: Una inscripción eliminada libera el cupo para otro socio.
+    // Se usan dos socios distintos: socio A (inscripción eliminada) y socio B (nueva inscripción).
+    // Esto es necesario para que la validación de duplicado no intercepte el escenario
+    // antes de llegar al conteo de cupo.
+    it('debe liberar cupo después de dar de baja una inscripción', async () => {
+        const MEMBER_A_UUID = VALID_MEMBER_UUID;
+        const MEMBER_B_UUID = OTHER_MEMBER_UUID;
+
+        mockMembers.push(
+            buildMemberDTO({ id: MEMBER_A_UUID }),
+            buildMemberDTO({ id: MEMBER_B_UUID, dni: '87654321', email: 'b@test.com' })
+        );
+        // Deporte con cupo máximo 1: después de eliminar la inscripción de A, B puede entrar.
+        mockSports.push(buildSportDTO({ id: VALID_SPORT_UUID, max_capacity: 1 }));
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, member_id: MEMBER_A_UUID, is_active: true, deleted_at: null })
+        );
+
+        const deleteResponse = await app.inject({
+            method: 'DELETE',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+        expect(deleteResponse.statusCode).toBe(200);
+
+        const postResponse = await app.inject({
+            method: 'POST',
+            url: '/api/v1/enrollments',
+            payload: { member_id: MEMBER_B_UUID, sport_id: VALID_SPORT_UUID },
+        });
+        expect(postResponse.statusCode).toBe(201);
+
+        // La inscripción eliminada no se computa en countActiveBySportId.
+        expect(mockEnrollments).toHaveLength(2);
+        const deletedEnrollment = mockEnrollments.find((e) => e.id === VALID_ENROLLMENT_UUID);
+        expect(deletedEnrollment?.deleted_at).not.toBeNull();
+    });
+});
