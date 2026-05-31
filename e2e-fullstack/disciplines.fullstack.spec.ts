@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { truncateAllTables } from './helpers/db-cleanup';
+import { truncateAllTables } from './helpers/db-cleanup.js';
 
 /**
  * Tests E2E Full-Stack para la entidad Discipline.
