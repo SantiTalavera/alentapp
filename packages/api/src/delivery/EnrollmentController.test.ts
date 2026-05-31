@@ -416,3 +416,93 @@ describe('EnrollmentController — update()', () => {
         });
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite delete() — tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('EnrollmentController — delete()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1]: Baja exitosa → 200 con DTO dado de baja.
+    it('debe responder 200 con la inscripción dada de baja', async () => {
+        const dto = buildEnrollmentDTO({
+            is_active: false,
+            deleted_at: '2026-05-31T00:00:00.000Z',
+        });
+        mockDeleteEnrollmentUseCase.execute.mockResolvedValueOnce(dto);
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { params: { id: VALID_ENROLLMENT_UUID } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockDeleteEnrollmentUseCase.execute).toHaveBeenCalledWith(VALID_ENROLLMENT_UUID);
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: dto });
+    });
+
+    // TEST [2]: Identificador inválido → 400.
+    it('debe responder 400 cuando el identificador es inválido', async () => {
+        mockDeleteEnrollmentUseCase.execute.mockRejectedValueOnce(
+            new Error('Identificador de inscripción inválido')
+        );
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { params: { id: 'no-uuid' } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(400);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Identificador de inscripción inválido',
+        });
+    });
+
+    // TEST [3]: Inscripción inexistente → 404.
+    it('debe responder 404 cuando la inscripción no existe', async () => {
+        mockDeleteEnrollmentUseCase.execute.mockRejectedValueOnce(
+            new Error('Inscripción no encontrada')
+        );
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { params: { id: VALID_ENROLLMENT_UUID } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'Inscripción no encontrada' });
+    });
+
+    // TEST [4]: Inscripción ya eliminada → 409.
+    it('debe responder 409 cuando la inscripción ya fue eliminada', async () => {
+        mockDeleteEnrollmentUseCase.execute.mockRejectedValueOnce(
+            new Error('La inscripción ya fue eliminada')
+        );
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { params: { id: VALID_ENROLLMENT_UUID } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(409);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: 'La inscripción ya fue eliminada' });
+    });
+
+    // TEST [5]: Error de infraestructura no mapeado → 500.
+    it('debe responder 500 ante un error inesperado', async () => {
+        mockDeleteEnrollmentUseCase.execute.mockRejectedValueOnce(new Error('fallo db'));
+
+        const mockReply   = buildMockReply();
+        const mockRequest = { params: { id: VALID_ENROLLMENT_UUID } };
+
+        await controller.delete(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Error interno, reintente más tarde',
+        });
+    });
+});
