@@ -7,10 +7,14 @@ import type { EnrollmentDTO, MemberDTO, SportDTO } from '@alentapp/shared';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const VALID_MEMBER_UUID     = '11111111-1111-4111-8111-111111111111';
-const OTHER_MEMBER_UUID     = '22222222-2222-4222-8222-222222222222';
-const VALID_SPORT_UUID      = '33333333-3333-4333-8333-333333333333';
-const VALID_ENROLLMENT_UUID = '44444444-4444-4444-8444-444444444444';
+const VALID_MEMBER_UUID      = '11111111-1111-4111-8111-111111111111';
+const OTHER_MEMBER_UUID      = '22222222-2222-4222-8222-222222222222';
+const VALID_SPORT_UUID       = '33333333-3333-4333-8333-333333333333';
+const OTHER_SPORT_UUID       = '55555555-5555-4555-8555-555555555555';
+const VALID_ENROLLMENT_UUID  = '44444444-4444-4444-8444-444444444444';
+const SECOND_ENROLLMENT_UUID = '66666666-6666-4666-8666-666666666666';
+const THIRD_ENROLLMENT_UUID  = '77777777-7777-4777-8777-777777777777';
+const NONEXISTENT_UUID       = '99999999-9999-4999-8999-999999999999';
 
 // ---------------------------------------------------------------------------
 // Stores en memoria: uno por entidad para aislar responsabilidades.
@@ -74,7 +78,8 @@ function buildEnrollmentDTO(overrides: Partial<EnrollmentDTO> = {}): EnrollmentD
 // create, findActiveByMemberAndSport y countActiveBySportId son los métodos
 // activamente usados por CREATE Enrollment.
 // Duplicados y cupo solo consideran inscripciones con is_active=true y deleted_at=null.
-// findById, findAll, update y softDelete son stubs para ramas futuras.
+// findAll aplica filtros acumulativos con lógica AND y excluye eliminadas lógicamente.
+// findById retorna la inscripción sin filtrar: el use case decide si está disponible.
 // ---------------------------------------------------------------------------
 
 vi.mock('../infrastructure/PostgresEnrollmentRepository.js', () => ({
@@ -116,12 +121,27 @@ vi.mock('../infrastructure/PostgresEnrollmentRepository.js', () => ({
             ).length;
         }
 
+        // Una inscripción histórica (is_active=false, deleted_at=null) sigue siendo visible.
+        // Una inscripción eliminada (deleted_at!=null) queda fuera del circuito operativo;
+        // el use case es quien decide rechazarla.
         async findById(id: string): Promise<EnrollmentDTO | null> {
             return mockEnrollments.find((e) => e.id === id) ?? null;
         }
 
-        async findAll(): Promise<EnrollmentDTO[]> {
-            return mockEnrollments.filter((e) => e.deleted_at === null);
+        // El listado operativo siempre excluye inscripciones con deleted_at !== null.
+        // Los filtros opcionales se acumulan con lógica AND.
+        async findAll(filters?: {
+            memberId?: string;
+            sportId?: string;
+            isActive?: boolean;
+        }): Promise<EnrollmentDTO[]> {
+            return mockEnrollments.filter(
+                (e) =>
+                    e.deleted_at === null &&
+                    (filters?.memberId === undefined || e.member_id === filters.memberId) &&
+                    (filters?.sportId === undefined || e.sport_id === filters.sportId) &&
+                    (filters?.isActive === undefined || e.is_active === filters.isActive)
+            );
         }
 
         async update(id: string, data: unknown): Promise<EnrollmentDTO> {
@@ -527,5 +547,345 @@ describe('Enrollment API — tests de integración (POST /api/v1/enrollments)', 
 
         expect(response.statusCode).toBe(201);
         expect(mockEnrollments).toHaveLength(2);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite de integración
+// Ruta bajo prueba: GET /api/v1/enrollments
+// Para GET no hace falta poblar stores de Members o Sports:
+// las consultas operan exclusivamente sobre Enrollment.
+// ---------------------------------------------------------------------------
+
+describe('Enrollment API — tests de integración (GET /api/v1/enrollments)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    beforeEach(() => {
+        resetEnrollmentStore();
+        resetMemberStore();
+        resetSportStore();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    // TEST [1]: Store vacío → 200 con array vacío.
+    it('debe retornar 200 con un array vacío cuando no existen inscripciones operativas', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO[] };
+        expect(body.data).toEqual([]);
+    });
+
+    // TEST [2]: Vigentes e históricas no eliminadas aparecen todas.
+    it('debe listar inscripciones vigentes e históricas no eliminadas', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true, deleted_at: null }),
+            buildEnrollmentDTO({ id: SECOND_ENROLLMENT_UUID, is_active: false, deleted_at: null })
+        );
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO[] };
+        expect(body.data).toHaveLength(2);
+    });
+
+    // TEST [3]: Las eliminadas lógicamente no se incluyen.
+    it('debe excluir inscripciones eliminadas lógicamente', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true, deleted_at: null }),
+            buildEnrollmentDTO({
+                id: SECOND_ENROLLMENT_UUID,
+                is_active: false,
+                deleted_at: '2025-01-01T00:00:00.000Z',
+            })
+        );
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO[] };
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].id).toBe(VALID_ENROLLMENT_UUID);
+    });
+
+    // TEST [4]: Filtro por memberId.
+    it('debe filtrar por memberId', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, member_id: VALID_MEMBER_UUID }),
+            buildEnrollmentDTO({ id: SECOND_ENROLLMENT_UUID, member_id: OTHER_MEMBER_UUID })
+        );
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/enrollments?memberId=${VALID_MEMBER_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO[] };
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].member_id).toBe(VALID_MEMBER_UUID);
+    });
+
+    // TEST [5]: Filtro por sportId.
+    it('debe filtrar por sportId', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, sport_id: VALID_SPORT_UUID }),
+            buildEnrollmentDTO({ id: SECOND_ENROLLMENT_UUID, sport_id: OTHER_SPORT_UUID })
+        );
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/enrollments?sportId=${VALID_SPORT_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO[] };
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].sport_id).toBe(VALID_SPORT_UUID);
+    });
+
+    // TEST [6]: Filtro isActive=true.
+    it('debe filtrar por isActive true', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true }),
+            buildEnrollmentDTO({ id: SECOND_ENROLLMENT_UUID, is_active: false })
+        );
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments?isActive=true',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO[] };
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].is_active).toBe(true);
+    });
+
+    // TEST [7]: Filtro isActive=false.
+    it('debe filtrar por isActive false', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true }),
+            buildEnrollmentDTO({ id: SECOND_ENROLLMENT_UUID, is_active: false, deleted_at: null })
+        );
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments?isActive=false',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO[] };
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].is_active).toBe(false);
+    });
+
+    // TEST [8]: Filtros acumulativos con lógica AND.
+    it('debe aplicar filtros acumulativos con lógica AND', async () => {
+        mockEnrollments.push(
+            // Coincidencia exacta: mismo member, mismo sport, histórica.
+            buildEnrollmentDTO({
+                id: VALID_ENROLLMENT_UUID,
+                member_id: VALID_MEMBER_UUID,
+                sport_id: VALID_SPORT_UUID,
+                is_active: false,
+                deleted_at: null,
+            }),
+            // Distinto member.
+            buildEnrollmentDTO({
+                id: SECOND_ENROLLMENT_UUID,
+                member_id: OTHER_MEMBER_UUID,
+                sport_id: VALID_SPORT_UUID,
+                is_active: false,
+                deleted_at: null,
+            }),
+            // Distinto sport.
+            buildEnrollmentDTO({
+                id: THIRD_ENROLLMENT_UUID,
+                member_id: VALID_MEMBER_UUID,
+                sport_id: OTHER_SPORT_UUID,
+                is_active: false,
+                deleted_at: null,
+            })
+        );
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/enrollments?memberId=${VALID_MEMBER_UUID}&sportId=${VALID_SPORT_UUID}&isActive=false`,
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO[] };
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].id).toBe(VALID_ENROLLMENT_UUID);
+    });
+
+    // TEST [9]: Filtros sin coincidencias → 200 con array vacío.
+    it('debe retornar 200 con array vacío cuando los filtros no encuentran coincidencias', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, member_id: OTHER_MEMBER_UUID })
+        );
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/enrollments?memberId=${VALID_MEMBER_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO[] };
+        expect(body.data).toEqual([]);
+    });
+
+    // TEST [10]: memberId con formato inválido → 400.
+    it('debe retornar 400 cuando memberId tiene formato inválido', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments?memberId=no-uuid',
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Identificador de socio inválido');
+    });
+
+    // TEST [11]: sportId con formato inválido → 400.
+    it('debe retornar 400 cuando sportId tiene formato inválido', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments?sportId=no-uuid',
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Identificador de deporte inválido');
+    });
+
+    // TEST [12]: isActive con valor no booleano → 400.
+    it('debe retornar 400 cuando isActive tiene formato inválido', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments?isActive=si',
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Filtro de vigencia inválido');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Suite de integración
+// Ruta bajo prueba: GET /api/v1/enrollments/:id
+// ---------------------------------------------------------------------------
+
+describe('Enrollment API — tests de integración (GET /api/v1/enrollments/:id)', () => {
+    let app: FastifyInstance;
+
+    beforeAll(async () => {
+        app = buildApp();
+        await app.ready();
+    });
+
+    beforeEach(() => {
+        resetEnrollmentStore();
+        resetMemberStore();
+        resetSportStore();
+    });
+
+    afterAll(async () => {
+        await app.close();
+    });
+
+    // TEST [1]: Inscripción vigente.
+    it('debe retornar 200 con una inscripción vigente', async () => {
+        const dto = buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: true, deleted_at: null });
+        mockEnrollments.push(dto);
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO };
+        expect(body.data.id).toBe(VALID_ENROLLMENT_UUID);
+        expect(body.data.is_active).toBe(true);
+    });
+
+    // TEST [2]: Inscripción histórica no eliminada visible.
+    it('debe retornar 200 con una inscripción histórica no eliminada', async () => {
+        const dto = buildEnrollmentDTO({ id: VALID_ENROLLMENT_UUID, is_active: false, deleted_at: null });
+        mockEnrollments.push(dto);
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.payload) as { data: EnrollmentDTO };
+        expect(body.data.id).toBe(VALID_ENROLLMENT_UUID);
+        expect(body.data.is_active).toBe(false);
+    });
+
+    // TEST [3]: Identificador con formato inválido → 400.
+    it('debe retornar 400 cuando el identificador tiene formato inválido', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: '/api/v1/enrollments/no-uuid',
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Identificador de inscripción inválido');
+    });
+
+    // TEST [4]: UUID válido inexistente → 404.
+    it('debe retornar 404 cuando la inscripción no existe', async () => {
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/enrollments/${NONEXISTENT_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(404);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Inscripción no encontrada');
+    });
+
+    // TEST [5]: Inscripción eliminada lógicamente → 404.
+    it('debe retornar 404 cuando la inscripción fue eliminada lógicamente', async () => {
+        mockEnrollments.push(
+            buildEnrollmentDTO({
+                id: VALID_ENROLLMENT_UUID,
+                deleted_at: '2025-01-01T00:00:00.000Z',
+            })
+        );
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/api/v1/enrollments/${VALID_ENROLLMENT_UUID}`,
+        });
+
+        expect(response.statusCode).toBe(404);
+        const body = JSON.parse(response.payload) as { error: string };
+        expect(body.error).toBe('Inscripción no encontrada');
     });
 });
