@@ -173,4 +173,67 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
     ).toBeVisible({ timeout: 10000 });
   });
 
+  test('debe mostrar error cuando expiry_date es anterior a issue_date y mantener el modal abierto', async ({ page }) => {
+    // --- Paso 1: Crear socio vía API ---
+    // Representa un socio que ya existe en el sistema antes de que el operador intente registrar el certificado
+    const apiContext = await playwrightRequest.newContext({
+      baseURL: 'http://localhost:3001'
+    });
+
+    const socioRes = await apiContext.post('/api/v1/socios', {
+      data: {
+        name: 'Socio E2E Fechas',
+        dni: '99988877',
+        email: 'e2efecas@test.com',
+        birthdate: '1990-01-01',
+        category: 'Pleno'
+      }
+    });
+    expect(socioRes.ok()).toBeTruthy();
+
+    await apiContext.dispose();
+
+    // --- Paso 2: El operador navega a /members y abre el modal de certificado ---
+    await page.goto('/members');
+
+    // Esperar que la tabla cargue con el socio recién creado
+    await expect(page.getByText('Socio E2E Fechas')).toBeVisible({ timeout: 10000 });
+
+    // El operador hace clic en el botón de la fila específica del socio
+    await page.locator('tr', { hasText: 'Socio E2E Fechas' })
+      .getByRole('button', { name: 'Registrar certificado médico' })
+      .click();
+
+    // Verificar que el modal está abierto antes de intentar el envío inválido
+    await expect(page.getByText(/Registrar Certificado Médico/)).toBeVisible({ timeout: 5000 });
+
+    // --- Paso 3: El operador completa el formulario con fechas inválidas (vencimiento anterior a emisión) ---
+    // Representa el error humano más frecuente al cargar fechas: invertir el orden
+    await page.getByLabel('Fecha de Emisión').fill('2026-01-01');
+    await page.getByLabel('Fecha de Vencimiento').fill('2025-01-01');
+    await page.getByPlaceholder('Ej: MN 12345').fill('MN-INVALID');
+
+    // --- Paso 4: Capturar el alert de validación y verificar el comportamiento defensivo del sistema ---
+    // El handler debe registrarse ANTES del click para no perder el evento de dialog
+    let alertMessage = '';
+    page.once('dialog', async (dialog) => {
+      alertMessage = dialog.message();
+      await dialog.accept();
+    });
+
+    // El operador intenta enviar el formulario con las fechas incorrectas
+    await page.getByRole('button', { name: 'Registrar Certificado' }).click();
+
+    // Verificar que el mensaje del alert comunica exactamente el error de validación esperado
+    // expect sincrónico: alertMessage ya fue capturado cuando dialog se resolvió
+    expect(alertMessage).toContain('La fecha de vencimiento debe ser posterior a la fecha de emisión');
+
+    // Verificar que el modal permanece abierto — el sistema no debe cerrar el formulario ante un error
+    // Si el modal se cerrara, el operador perdería los datos ya ingresados
+    await expect(page.getByText(/Registrar Certificado Médico/)).toBeVisible();
+
+    // Verificar que no hubo navegación — la URL sigue siendo /members
+    await expect(page).toHaveURL(/\/members$/);
+  });
+
 });
