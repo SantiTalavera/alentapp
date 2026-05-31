@@ -301,3 +301,118 @@ describe('EnrollmentController — getById()', () => {
         });
     });
 });
+
+// ---------------------------------------------------------------------------
+// Suite update() — tests unitarios
+// ---------------------------------------------------------------------------
+
+describe('EnrollmentController — update()', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // TEST [1]: Actualización exitosa → 200 con EnrollmentDTO actualizado.
+    it('debe responder 200 con la inscripción actualizada', async () => {
+        const dto = buildEnrollmentDTO({ is_active: false });
+        mockUpdateEnrollmentUseCase.execute.mockResolvedValueOnce(dto);
+
+        const mockReply   = buildMockReply();
+        const mockRequest = {
+            params: { id: VALID_ENROLLMENT_UUID },
+            body: { is_active: false },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockUpdateEnrollmentUseCase.execute).toHaveBeenCalledWith(
+            VALID_ENROLLMENT_UUID,
+            { is_active: false }
+        );
+        expect(mockReply.code).toHaveBeenCalledWith(200);
+        expect(mockReply.send).toHaveBeenCalledWith({ data: dto });
+    });
+
+    // TEST [2-5]: Errores de validación de formato → 400 Bad Request.
+    it.each([
+        'Identificador de inscripción inválido',
+        'Se requiere al menos un campo para actualizar',
+        'Campo no permitido para modificación',
+        'El campo is_active debe ser booleano',
+    ] as const)(
+        'debe responder 400 cuando el use case lanza "%s"',
+        async (message) => {
+            mockUpdateEnrollmentUseCase.execute.mockRejectedValueOnce(new Error(message));
+
+            const mockReply   = buildMockReply();
+            const mockRequest = {
+                params: { id: VALID_ENROLLMENT_UUID },
+                body: {},
+            };
+
+            await controller.update(mockRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(400);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: message });
+        }
+    );
+
+    // TEST [6]: Inscripción inexistente → 404.
+    it('debe responder 404 cuando la inscripción no existe', async () => {
+        const message = 'Inscripción no encontrada';
+        mockUpdateEnrollmentUseCase.execute.mockRejectedValueOnce(new Error(message));
+
+        const mockReply   = buildMockReply();
+        const mockRequest = {
+            params: { id: VALID_ENROLLMENT_UUID },
+            body: { is_active: false },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(404);
+        expect(mockReply.send).toHaveBeenCalledWith({ error: message });
+    });
+
+    // TEST [7-11]: Reglas de negocio violadas → 409 Conflict.
+    it.each([
+        'No se puede modificar una inscripción eliminada',
+        'El socio no está habilitado',
+        'El deporte no está disponible',
+        'Ya existe una inscripción activa para este deporte',
+        'No hay cupo disponible para este deporte',
+    ] as const)(
+        'debe responder 409 cuando el use case lanza "%s"',
+        async (message) => {
+            mockUpdateEnrollmentUseCase.execute.mockRejectedValueOnce(new Error(message));
+
+            const mockReply   = buildMockReply();
+            const mockRequest = {
+                params: { id: VALID_ENROLLMENT_UUID },
+                body: { is_active: true },
+            };
+
+            await controller.update(mockRequest as any, mockReply as any);
+
+            expect(mockReply.code).toHaveBeenCalledWith(409);
+            expect(mockReply.send).toHaveBeenCalledWith({ error: message });
+        }
+    );
+
+    // TEST [12]: Error de infraestructura no mapeado → 500.
+    it('debe responder 500 ante un error inesperado', async () => {
+        mockUpdateEnrollmentUseCase.execute.mockRejectedValueOnce(new Error('fallo db'));
+
+        const mockReply   = buildMockReply();
+        const mockRequest = {
+            params: { id: VALID_ENROLLMENT_UUID },
+            body: { is_active: false },
+        };
+
+        await controller.update(mockRequest as any, mockReply as any);
+
+        expect(mockReply.code).toHaveBeenCalledWith(500);
+        expect(mockReply.send).toHaveBeenCalledWith({
+            error: 'Error interno, reintente más tarde',
+        });
+    });
+});
