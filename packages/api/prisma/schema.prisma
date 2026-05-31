@@ -94,7 +94,6 @@ model MedicalCertificate {
     member_id      String
     member         Member   @relation(fields: [member_id], references: [id], onDelete: Restrict)
 
-    @@unique([member_id, is_validated], name: "unique_active_cert")
     @@map("medical_certificates")
 }
 
