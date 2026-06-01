@@ -57,6 +57,18 @@ const statusCategories = createListCollection({
   ],
 });
 
+function validateDisciplineDateRange(startDate: string, endDate: string): string | null {
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  if (new Date(endDate) <= new Date(startDate)) {
+    return "La fecha de fin debe ser posterior a la fecha de inicio";
+  }
+
+  return null;
+}
+
 export function MembersView() {
   const [members, setMembers] = useState<MemberDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,6 +81,7 @@ export function MembersView() {
   const [isDisciplineDialogOpen, setIsDisciplineDialogOpen] = useState(false);
   const [selectedMemberForDiscipline, setSelectedMemberForDiscipline] = useState<MemberDTO | null>(null);
   const [isSubmittingDiscipline, setIsSubmittingDiscipline] = useState(false);
+  const [disciplineFormError, setDisciplineFormError] = useState<string | null>(null);
 
   const [isMedicalCertDialogOpen, setIsMedicalCertDialogOpen] = useState(false);
   const [selectedMemberForMedicalCert, setSelectedMemberForMedicalCert] = useState<MemberDTO | null>(null);
@@ -174,6 +187,7 @@ export function MembersView() {
       end_date: "",
       is_total_suspension: false,
     });
+    setDisciplineFormError(null);
     setIsDisciplineDialogOpen(true);
   };
 
@@ -290,14 +304,27 @@ export function MembersView() {
 
   const handleDisciplineSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const validationError = validateDisciplineDateRange(
+      disciplineFormData.start_date,
+      disciplineFormData.end_date
+    );
+
+    if (validationError) {
+      setDisciplineFormError(validationError);
+      return;
+    }
+
     setIsSubmittingDiscipline(true);
+    setDisciplineFormError(null);
+
     try {
       await disciplinesService.create(disciplineFormData);
       setIsDisciplineDialogOpen(false);
       setSelectedMemberForDiscipline(null);
       fetchMembers();
     } catch (err: any) {
-      alert(err.message || "Error al registrar la disciplina");
+      setDisciplineFormError(err.message || "Error al registrar la disciplina");
     } finally {
       setIsSubmittingDiscipline(false);
     }
@@ -598,7 +625,15 @@ export function MembersView() {
       </Box>
     </Stack>
   </DialogRoot>
-  <DialogRoot open={isDisciplineDialogOpen} onOpenChange={(e) => setIsDisciplineDialogOpen(e.open)}>
+  <DialogRoot
+    open={isDisciplineDialogOpen}
+    onOpenChange={(e) => {
+      setIsDisciplineDialogOpen(e.open);
+      if (!e.open) {
+        setDisciplineFormError(null);
+      }
+    }}
+  >
     <DialogContent>
       <form onSubmit={handleDisciplineSubmit}>
         <DialogHeader>
@@ -609,6 +644,12 @@ export function MembersView() {
         </DialogHeader>
         <DialogBody>
           <Stack gap="4">
+            {disciplineFormError ? (
+              <Text color="red.600" fontWeight="medium">
+                {disciplineFormError}
+              </Text>
+            ) : null}
+
             <Field label="Motivo" required>
               <Input
                 placeholder="Ej. Incumplimiento del reglamento"

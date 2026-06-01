@@ -71,6 +71,18 @@ const initialEditFormState = (): UpdateDisciplineRequest => ({
   is_total_suspension: false,
 });
 
+function validateDisciplineDateRange(startDate?: string, endDate?: string): string | null {
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  if (new Date(endDate) <= new Date(startDate)) {
+    return 'La fecha de fin debe ser posterior a la fecha de inicio';
+  }
+
+  return null;
+}
+
 export function DisciplinesView() {
   const [members, setMembers] = useState<MemberDTO[]>([]);
   const [selectedMember, setSelectedMember] = useState<MemberDTO | null>(null);
@@ -177,6 +189,16 @@ export function DisciplinesView() {
       return;
     }
 
+    const validationError = validateDisciplineDateRange(
+      editFormData.start_date,
+      editFormData.end_date
+    );
+
+    if (validationError) {
+      setEditFormError(validationError);
+      return;
+    }
+
     setIsEditSubmitting(true);
     setEditFormError(null);
     setSuccessMessage(null);
@@ -233,7 +255,31 @@ export function DisciplinesView() {
   };
 
   useEffect(() => {
-    void loadMembers();
+    let isMounted = true;
+
+    void (async () => {
+      try {
+        const data = await membersService.getAll();
+
+        if (isMounted) {
+          setMembers(data);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Error al cargar los socios';
+
+        if (isMounted) {
+          setError(message);
+        }
+      } finally {
+        if (isMounted) {
+          setIsMembersLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
