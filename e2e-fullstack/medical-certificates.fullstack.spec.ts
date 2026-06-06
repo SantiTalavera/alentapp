@@ -2,6 +2,15 @@ import { test, expect, request as playwrightRequest } from '@playwright/test';
 import { truncateAllTables } from './helpers/db-cleanup.js';
 
 /**
+ * Función auxiliar para generar fechas relativas al día de hoy en formato YYYY-MM-DD.
+ */
+function getRelativeDate(daysOffset: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + daysOffset);
+  return date.toISOString().split('T')[0];
+}
+
+/**
  * Tests E2E Full-Stack para la vista de Certificados Médicos.
  * NO hay ningún mock de red. Playwright interactúa con:
  *   - El Frontend React en http://localhost:5173
@@ -43,8 +52,8 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
     const cert1Res = await apiContext.post('/api/v1/medical-certificates', {
       data: {
         member_id: socioId,
-        issue_date: '2024-01-01',
-        expiry_date: '2025-01-01',
+        issue_date: getRelativeDate(-400),
+        expiry_date: getRelativeDate(-35),
         doctor_license: 'MN-11111'
       }
     });
@@ -74,8 +83,8 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
     ).toBeVisible();
 
     // El operador completa el formulario con los datos del nuevo certificado
-    await page.getByLabel('Fecha de Emisión').fill('2025-06-01');
-    await page.getByLabel('Fecha de Vencimiento').fill('2026-06-01');
+    await page.getByLabel('Fecha de Emisión').fill(getRelativeDate(-10));
+    await page.getByLabel('Fecha de Vencimiento').fill(getRelativeDate(355));
     await page.getByPlaceholder('Ej: MN 12345').fill('MN-22222');
 
     // Registrar handler de dialog antes del click para no perder el evento
@@ -137,8 +146,8 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
     const certRes = await apiContext.post('/api/v1/medical-certificates', {
       data: {
         member_id: socioId,
-        issue_date: '2025-01-01',
-        expiry_date: '2026-06-01',
+        issue_date: getRelativeDate(-10),
+        expiry_date: getRelativeDate(355),
         doctor_license: 'MN-DELETE'
       }
     });
@@ -209,8 +218,8 @@ test.describe('MedicalCertificates Full-Stack E2E', () => {
 
     // --- Paso 3: El operador completa el formulario con fechas inválidas (vencimiento anterior a emisión) ---
     // Representa el error humano más frecuente al cargar fechas: invertir el orden
-    await page.getByLabel('Fecha de Emisión').fill('2026-01-01');
-    await page.getByLabel('Fecha de Vencimiento').fill('2025-01-01');
+    await page.getByLabel('Fecha de Emisión').fill(getRelativeDate(10));
+    await page.getByLabel('Fecha de Vencimiento').fill(getRelativeDate(-10));
     await page.getByPlaceholder('Ej: MN 12345').fill('MN-INVALID');
 
     // --- Paso 4: Capturar el alert de validación y verificar el comportamiento defensivo del sistema ---
