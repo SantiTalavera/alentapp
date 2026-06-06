@@ -1,3 +1,9 @@
+// PRIMERO: inicializar OpenTelemetry antes de cualquier otro import.
+// El SDK parchea módulos como 'http', 'pg' y 'fastify' en tiempo de carga.
+// Si se importara después de Fastify o de los repositorios, esas instrumentaciones
+// ya habrían cargado y el parcheo no tendría efecto.
+import './infrastructure/telemetry.js';
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { PostgresMemberRepository } from './infrastructure/PostgresMemberRepository.js';
