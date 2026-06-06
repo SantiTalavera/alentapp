@@ -1,10 +1,7 @@
-// PRIMERO: inicializar OpenTelemetry antes de cualquier otro import.
-// El SDK parchea módulos como 'http', 'pg' y 'fastify' en tiempo de carga.
-// Si se importara después de Fastify o de los repositorios, esas instrumentaciones
-// ya habrían cargado y el parcheo no tendría efecto.
 import './infrastructure/telemetry.js';
+import { createREDMetrics, meter } from './infrastructure/telemetry.js';
 
-import Fastify from 'fastify';
+import Fastify, { FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
 import { PostgresMemberRepository } from './infrastructure/PostgresMemberRepository.js';
 import { MemberValidator } from './domain/services/MemberValidator.js';
@@ -90,6 +87,45 @@ export function buildApp() {
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
     });
+
+    // ─── Hooks globales de métricas RED ───────────────────────────────────────
+    // Se instancian una sola vez a nivel de buildApp(); los hooks son funciones
+    // ligeras que solo hacen referencia a estos objetos ya creados.
+    const { requestCounter, errorCounter, requestDuration, activeRequestsCounter } =
+        createREDMetrics(meter);
+
+    // onRequest: se ejecuta al recibir la petición, antes de parsear body/params.
+    // Guarda el timestamp de inicio en el objeto request para calcular la latencia
+    // en onResponse, y suma 1 al contador de requests activas.
+    server.addHook('onRequest', async (request, _reply) => {
+        (request as FastifyRequest & { startTime: number }).startTime = Date.now();
+        activeRequestsCounter.add(1);
+    });
+
+    // onResponse: se ejecuta después de enviar la respuesta al cliente.
+    // Calcula la latencia, decrementa el contador de activas y clasifica la
+    // request como exitosa (requestCounter) o fallida (errorCounter) según
+    // el status code. Los labels method/route/status permiten filtrar en Grafana.
+    server.addHook('onResponse', async (request, reply) => {
+        const startTime = (request as FastifyRequest & { startTime: number }).startTime ?? Date.now();
+        const duration = Date.now() - startTime;
+        const labels = {
+            method: request.method,
+            route: request.routeOptions.url ?? request.url,
+            status: String(reply.statusCode),
+        };
+
+        activeRequestsCounter.add(-1);
+        requestDuration.record(duration, labels);
+
+        if (reply.statusCode >= 400) {
+            errorCounter.add(1, labels);
+        } else {
+            requestCounter.add(1, labels);
+        }
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
 
     const memberRepo = new PostgresMemberRepository();
     const memberValidator = new MemberValidator(memberRepo);
