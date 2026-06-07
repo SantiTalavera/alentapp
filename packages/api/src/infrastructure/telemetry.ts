@@ -1,13 +1,12 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-// FastifyInstrumentation NO está incluida en el bundle de auto-instrumentations-node.
-// Los paquetes de instrumentación externos se instancian directamente y se pasan
-// en el array 'instrumentations', no como clave en el objeto de getNodeAutoInstrumentations.
+// Se usan solo las instrumentaciones necesarias para Alentapp:
+// HttpInstrumentation cubre las peticiones HTTP entrantes/salientes.
+// FastifyInstrumentation agrega spans específicos del framework.
+// Reemplaza getNodeAutoInstrumentations (meta-paquete de ~400MB que incluye
+// instrumentaciones para AWS, Redis, MongoDB, MySQL, gRPC, etc. no utilizadas).
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
-// 'Meter' es una interfaz de la API pública de OpenTelemetry, no del SDK de implementación.
-// @opentelemetry/sdk-metrics exporta las clases concretas (MeterProvider, MetricReader, etc.)
-// mientras que @opentelemetry/api exporta los tipos e interfaces que usa el código de aplicación.
 import { metrics, Meter } from '@opentelemetry/api';
 
 // Configurar Prometheus Exporter
@@ -16,17 +15,11 @@ const prometheusExporter = new PrometheusExporter({
     endpoint: '/metrics',
 });
 
-// Crear SDK con auto-instrumentaciones
+// Crear SDK con las instrumentaciones específicas necesarias
 const sdk = new NodeSDK({
     metricReader: prometheusExporter,
     instrumentations: [
-        // getNodeAutoInstrumentations solo acepta claves de instrumentaciones
-        // que están incluidas dentro del propio paquete auto-instrumentations-node.
-        getNodeAutoInstrumentations({
-            '@opentelemetry/instrumentation-http': {},
-        }),
-        // FastifyInstrumentation se instancia por separado porque es un paquete
-        // independiente no incluido en auto-instrumentations-node.
+        new HttpInstrumentation(),
         new FastifyInstrumentation(),
     ],
 });
