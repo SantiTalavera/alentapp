@@ -31,8 +31,17 @@ const sdk = new NodeSDK({
     ],
 });
 
-// Iniciar SDK
-sdk.start();
+// Rastrear si el SDK fue efectivamente iniciado.
+// Solo se inicia fuera del entorno de test: en tests (NODE_ENV=test) el
+// PrometheusExporter intentaría ocupar el puerto 9464 en cada worker de
+// Vitest, causando EADDRINUSE en suites paralelas.
+// También se puede deshabilitar explícitamente con OTEL_ENABLED=false.
+let telemetryStarted = false;
+
+if (process.env.NODE_ENV !== 'test' && process.env.OTEL_ENABLED !== 'false') {
+    sdk.start();
+    telemetryStarted = true;
+}
 
 // Corrección 2: 'meter' se crea a nivel de módulo y se exporta para ser reutilizado
 // por cualquier parte de la aplicación que necesite registrar métricas.
@@ -76,19 +85,30 @@ export function createREDMetrics(meter: Meter) {
     return { requestCounter, errorCounter, requestDuration, activeRequestsCounter };
 }
 
-// Corrección 3: manejo del ciclo de vida del SDK en entornos Docker/producción.
-// Cuando el proceso recibe SIGTERM o SIGINT (por ejemplo, al ejecutar 'docker stop'),
-// se invoca sdk.shutdown() para hacer flush de las métricas pendientes antes de salir.
-// Sin esto, las últimas métricas registradas antes de un shutdown se perderían.
-export async function gracefulShutdown(): Promise<void> {
-    await sdk.shutdown();
+// Caché de métricas RED a nivel de módulo.
+// Dado que 'meter' es global, recrear instrumentos con el mismo nombre en
+// llamadas sucesivas a buildApp() (habitual en tests de integración) puede
+// acumular callbacks del ObservableGauge o generar warnings del SDK.
+// getREDMetrics() garantiza que los instrumentos se crean una sola vez.
+let redMetrics: ReturnType<typeof createREDMetrics> | undefined;
+
+export function getREDMetrics(): ReturnType<typeof createREDMetrics> {
+    if (!redMetrics) {
+        redMetrics = createREDMetrics(meter);
+    }
+    return redMetrics;
 }
 
-['SIGTERM', 'SIGINT'].forEach((signal) => {
-    process.on(signal, async () => {
-        await gracefulShutdown();
-        process.exit(0);
-    });
-});
+// Cierra el SDK de OpenTelemetry de forma ordenada.
+// El objetivo principal es detener el servidor HTTP del PrometheusExporter
+// (puerto 9464) y liberar sus recursos. Si el SDK no fue iniciado
+// (entorno de test o OTEL_ENABLED=false), retorna sin hacer nada.
+// Los listeners de señales (SIGTERM/SIGINT) se registran exclusivamente
+// en app.ts para evitar carreras entre múltiples handlers.
+export async function shutdownTelemetry(): Promise<void> {
+    if (!telemetryStarted) return;
+    await sdk.shutdown();
+    telemetryStarted = false;
+}
 
 export { sdk, meter, prometheusExporter };
