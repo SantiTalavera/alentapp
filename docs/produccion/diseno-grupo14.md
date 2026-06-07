@@ -219,3 +219,93 @@ Se configura el driver `json-file` con rotación en todos los servicios para evi
 | `nginx:stable-alpine` para servir el frontend | Servir estáticos desde Node.js | nginx es 10-100x más eficiente que Node.js para servir archivos estáticos, soporta gzip nativo, caché de respuestas y security headers sin dependencias adicionales. |
 | `npm ci --omit=dev` en etapa `deps` de API | `npm install` | `npm ci` es reproducible (usa `package-lock.json` exacto), más rápido y adecuado para CI/CD. `--omit=dev` garantiza que ninguna devDependency entre en la imagen final. |
 | Secretos via `.env` + `env_file` | Variables de entorno en el `docker-compose.prod.yml` | El archivo `.env` puede ser gestionado por herramientas de secretos (AWS Secrets Manager, Vault) sin modificar el compose. Es el estándar de facto para entornos sin orquestación avanzada (Kubernetes). |
+
+---
+
+## 2.2. Diseño de la Observabilidad
+
+Esta sección especifica el diseño de la observabilidad para Alentapp, detallando cómo se capturan, procesan y visualizan las señales mediante OpenTelemetry y el stack de Grafana.
+
+### a) Métricas RED a capturar
+
+Las siguientes métricas de aplicación y sistema serán recopiladas para evaluar la salud, rendimiento y consumo del backend:
+
+| Nombre de la Métrica | Tipo | Labels / Etiquetas | Propósito / Descripción |
+| :--- | :---: | :--- | :--- |
+| `http.server.request.rate` | Counter | `method`, `route`, `status` | Cantidad total de solicitudes HTTP recibidas por segundo. |
+| `http.server.request.errors` | Counter | `method`, `route`, `status` | Cantidad total de solicitudes HTTP fallidas (status 4xx/5xx). |
+| `http.server.duration` | Histogram | `method`, `route` | Latencia y distribución del tiempo de respuesta del servidor. |
+| `process.memory.usage` | Gauge | `type` | Memoria física usada por el proceso (heap, rss, externa). |
+| `http.requests.active` | Gauge | `method`, `route` | Cantidad de peticiones HTTP concurrentes en procesamiento activo. |
+
+#### Justificación de las Etiquetas (Labels):
+Las etiquetas `method`, `route` y `status` son cruciales en un entorno de producción debido a los siguientes motivos:
+* **Filtro y Segmentación Dinámica:** Permiten aislar rápidamente si el aumento en los tiempos de respuesta o la tasa de fallos se debe a un endpoint específico (ej. `/api/payments` vs `/api/auth`) o a un método particular (ej. un `POST` pesado vs un `GET` rápido).
+* **Identificación de Código de Respuesta:** El label `status` permite discernir si los errores son de cliente (4xx) o de servidor (5xx). Esto evita falsas alertas de infraestructura ante accesos denegados y permite enfocar la atención en fallos reales de la aplicación.
+* **Correlación Eficiente:** Permite cruzar métricas cuantitativas directamente con las trazas y logs de peticiones específicas que coincidan con las mismas dimensiones.
+
+---
+
+### b) OpenTelemetry SDK
+
+El SDK de OpenTelemetry se configurará en un archivo de inicialización temprana (`telemetry.ts` o similar) que se ejecutará antes de importar cualquier otra biblioteca o framework en la API. Esto garantiza la auto-instrumentación correcta del módulo HTTP nativo de Node.js y de Fastify.
+
+#### Configuración Conceptual en TypeScript:
+```typescript
+// Estructura conceptual de la configuración OpenTelemetry
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+
+// Configuración a implementar:
+// 1. PrometheusExporter en puerto 9464
+// 2. Auto-instrumentaciones para HTTP y Fastify
+// 3. Métricas personalizadas RED definidas arriba
+
+const prometheusExporter = new PrometheusExporter(
+  {
+    port: 9464,
+    preventStart: false,
+  },
+  () => {
+    console.log('Prometheus exporter running on port 9464');
+  }
+);
+
+const sdk = new NodeSDK({
+  metricReader: prometheusExporter,
+  instrumentations: [
+    getNodeAutoInstrumentations({
+      // Habilitar instrumentaciones específicas
+      '@opentelemetry/instrumentation-http': { enabled: true },
+      '@opentelemetry/instrumentation-fastify': { enabled: true },
+    }),
+  ],
+});
+
+sdk.start();
+
+// Proceso para inyección de métricas personalizadas RED:
+// - La instrumentación automática de HTTP y Fastify intercepta cada request entrante.
+// - Registra las métricas predefinidas de OTel agregándoles de forma transparente
+//   las dimensiones (labels) del método HTTP, la ruta mapeada y el status code retornado.
+```
+
+#### Explicación Teórica de la Inyección de Métricas:
+* **Intercepción a Nivel de Módulo:** `getNodeAutoInstrumentations` utiliza `require-in-the-middle` para envolver dinámicamente los métodos nativos del backend.
+* **Inyección de Métricas Personalizadas:** Al registrar el `PrometheusExporter` en el SDK de Node, OpenTelemetry mapea automáticamente sus métricas recolectadas internas (como la duración y conteo de peticiones) hacia el endpoint expuesto. Esto traduce las trazas e interceptores HTTP en métricas agregadas tipo `http.server.duration` y `http.server.request.rate` con las etiquetas especificadas de manera no invasiva, sin necesidad de agregar código de monitoreo dentro de las rutas de negocio de Alentapp.
+
+---
+
+### c) Dashboard RED en Grafana
+
+Para visualizar de manera centralizada la salud de nuestro backend en producción, se estructurará un dashboard en Grafana basado en los siguientes 6 paneles principales:
+
+| Panel | Métrica (PromQL Conceptual) | Tipo de Gráfico | Propósito del Panel |
+| :--- | :--- | :---: | :--- |
+| **1. Requests por segundo** | `sum(rate(http.server.duration_count[1m]))` | Time series | Visualizar el volumen de tráfico actual y detectar picos de demanda o caídas inusuales en las peticiones. |
+| **2. Tasa de error** | `sum(rate(http.server.duration_count{status=~"5.."}[1m])) / sum(rate(http.server.duration_count[1m])) * 100` | Time series | Monitorear el porcentaje de solicitudes fallidas (5xx) sobre el total para alertar en caso de inestabilidad severa. |
+| **3. Latencia p95 / p99** | `histogram_quantile(0.95, sum(rate(http.server.duration_bucket[5m])) by (le))` / `histogram_quantile(0.99, sum(rate(http.server.duration_bucket[5m])) by (le))` | Time series | Medir el rendimiento percibido por el 95% y 99% de los usuarios, identificando lentitudes que los promedios ocultan. |
+| **4. Por status code** | `sum by (status) (rate(http.server.duration_count[1m]))` | Stacked area | Analizar la distribución de códigos de respuesta HTTP (2xx, 3xx, 4xx, 5xx) a lo largo del tiempo. |
+| **5. Memoria del proceso** | `process.memory.usage` | Time series | Controlar el consumo de recursos de memoria RAM del proceso Node.js para identificar posibles memory leaks. |
+| **6. Endpoints más lentos** | `topk(5, sum(rate(http.server.duration_sum[5m])) by (route) / sum(rate(http.server.duration_count[5m])) by (route))` | Bar chart horizontal | Detectar cuáles son los 5 endpoints más lentos de la API (cuellos de botella) para priorizar refactorizaciones de código. |
