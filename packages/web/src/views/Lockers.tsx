@@ -16,7 +16,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 import { LuPlus, LuRefreshCw, LuTrash2, LuPencil } from 'react-icons/lu';
-import type { LockerDTO, MemberDTO, CreateLockerRequest, UpdateLockerRequest } from '@alentapp/shared';
+import type { LockerDTO, MemberDTO, UpdateLockerRequest } from '@alentapp/shared';
 import {
   DialogRoot,
   DialogContent,
