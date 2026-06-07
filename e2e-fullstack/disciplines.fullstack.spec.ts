@@ -106,15 +106,11 @@ test.describe('Disciplines Full-Stack E2E', () => {
   test('flujo validación de fechas: rechaza end_date anterior a start_date y mantiene el formulario abierto', async ({ page }) => {
     await createActiveMember(page);
 
-    let alertMessage = '';
-    page.once('dialog', async (dialog) => {
-      alertMessage = dialog.message();
-      await dialog.accept();
-    });
-
     await createTotalDiscipline(page, { endDate: daysFromToday(-2) });
 
-    expect(alertMessage).toContain('La fecha de fin debe ser posterior a la fecha de inicio');
+    await expect(
+      page.getByText('La fecha de fin debe ser posterior a la fecha de inicio')
+    ).toBeVisible();
 
     await expect(page.getByText(`Registrar Disciplina - ${memberName}`)).toBeVisible();
     await expect(page).toHaveURL(/\/members$/);
