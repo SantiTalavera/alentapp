@@ -155,9 +155,58 @@ services:
         max-size: '10m'
         max-file: '3'
 
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: alentapp-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
+    ports:
+      - '3001:3000'
+    depends_on:
+      prometheus:
+        condition: service_started
+    networks:
+      - alentapp-prod-net
+    restart: unless-stopped
+    user: "472"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/log/grafana:uid=472
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
 volumes:
   pgdata_prod:
   prometheus_data:
+  grafana_data:
 
 networks:
   alentapp-prod-net:
