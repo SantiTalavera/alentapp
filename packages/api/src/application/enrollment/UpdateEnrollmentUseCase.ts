@@ -45,15 +45,14 @@ export class UpdateEnrollmentUseCase {
             });
         }
 
-        if (!enrollment.is_active && data.is_active === true) {
-            await this.enrollmentValidator.validateEnrollmentReactivation(
-                enrollment.member_id,
-                enrollment.sport_id,
-                enrollment.id
-            );
-            return this.enrollmentRepository.update(trimmedId, {
-                is_active: true,
-            });
-        }
+        // Si no son iguales y no se desactiva, entonces se está reactivando
+        await this.enrollmentValidator.validateEnrollmentReactivation(
+            enrollment.member_id,
+            enrollment.sport_id,
+            enrollment.id
+        );
+        return this.enrollmentRepository.update(trimmedId, {
+            is_active: true,
+        });
     }
 }

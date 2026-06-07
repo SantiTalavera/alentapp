@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.test.ts
+*.spec.ts
+.env*
+Dockerfile*
+docker-compose*
+README.md
+.git
