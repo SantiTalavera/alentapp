@@ -1,4 +1,5 @@
-import Fastify from 'fastify';
+import { getREDMetrics, meter, shutdownTelemetry } from './infrastructure/telemetry.js';
+import Fastify, { FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
 import { PostgresMemberRepository } from './infrastructure/PostgresMemberRepository.js';
 import { MemberValidator } from './domain/services/MemberValidator.js';
@@ -84,6 +85,78 @@ export function buildApp() {
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
     });
+
+    // ─── Hooks globales de métricas RED ───────────────────────────────────────
+    // getREDMetrics() devuelve siempre la misma instancia cacheada a nivel de
+    // módulo. Esto evita recrear instrumentos con el mismo nombre en el mismo
+    // meter global cuando buildApp() se llama varias veces (tests de integración).
+    const { requestCounter, errorCounter, requestDuration, activeRequestsCounter } =
+        getREDMetrics();
+
+    // Tipo extendido que adjunta estado de instrumentación al objeto request.
+    // - startTime: timestamp de recepción para calcular latencia.
+    // - activeRequestFinalized: guardia idempotente para el decremento del
+    //   gauge de requests activas. Necesaria porque ante conexiones abortadas
+    //   o timeouts puede ejecutarse más de un hook de cierre (onResponse,
+    //   onRequestAbort, onTimeout), y solo debe decrementarse una vez.
+    type InstrumentedRequest = FastifyRequest & {
+        startTime?: number;
+        activeRequestFinalized?: boolean;
+    };
+
+    // Decrementa el gauge de requests activas exactamente una vez por request,
+    // sin importar qué hook lo invoque primero.
+    function finalizeActiveRequest(request: InstrumentedRequest): void {
+        if (request.activeRequestFinalized) return;
+        request.activeRequestFinalized = true;
+        activeRequestsCounter.add(-1);
+    }
+
+    // onRequest: se ejecuta al recibir la petición, antes de parsear body/params.
+    // Guarda el timestamp de inicio para calcular la latencia en onResponse
+    // y suma 1 al gauge de requests activas.
+    server.addHook('onRequest', async (request, _reply) => {
+        (request as InstrumentedRequest).startTime = Date.now();
+        activeRequestsCounter.add(1);
+    });
+
+    // onResponse: camino normal — la respuesta fue enviada al cliente.
+    // Calcula la latencia, finaliza el gauge y registra los contadores.
+    // requestCounter se incrementa siempre (tráfico total); errorCounter
+    // solo cuando status >= 400, lo que permite calcular tasa de error
+    // = errores / total en Grafana.
+    server.addHook('onResponse', async (request, reply) => {
+        const req = request as InstrumentedRequest;
+        const duration = Date.now() - (req.startTime ?? Date.now());
+        const labels = {
+            method: request.method,
+            route: request.routeOptions.url ?? request.url,
+            status: String(reply.statusCode),
+        };
+
+        finalizeActiveRequest(req);
+        requestDuration.record(duration, labels);
+
+        requestCounter.add(1, labels);
+
+        if (reply.statusCode >= 400) {
+            errorCounter.add(1, labels);
+        }
+    });
+
+    // onRequestAbort: el cliente cerró la conexión antes de recibir respuesta.
+    // onResponse no se ejecutará, así que finalizamos el gauge aquí.
+    server.addHook('onRequestAbort', async (request) => {
+        finalizeActiveRequest(request as InstrumentedRequest);
+    });
+
+    // onTimeout: la request superó el tiempo límite configurado en Fastify.
+    // onResponse puede no ejecutarse en este caso, así que finalizamos aquí.
+    server.addHook('onTimeout', async (request, _reply) => {
+        finalizeActiveRequest(request as InstrumentedRequest);
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
 
     const memberRepo = new PostgresMemberRepository();
     const memberValidator = new MemberValidator(memberRepo);
@@ -334,10 +407,22 @@ if (process.argv[1] && (process.argv[1].endsWith('app.ts') || process.argv[1].en
         server.log.info(`API server running on http://localhost:${port}`)
     );
 
-    ['SIGINT', 'SIGTERM'].forEach((signal) => {
-        process.on(signal, async () => {
-            await server.close();
-            process.exit(0);
-        });
-    });
+    // Shutdown unificado: un único punto de control para SIGINT y SIGTERM.
+    // La guardia 'shuttingDown' evita que dos señales simultáneas disparen
+    // el cierre dos veces (carrera). El orden importa: primero se cierra
+    // Fastify (deja de aceptar conexiones nuevas) y luego el SDK de OTel
+    // (detiene el servidor HTTP del PrometheusExporter en :9464).
+    let shuttingDown = false;
+
+    async function shutdown(signal: string): Promise<void> {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        server.log.info({ signal }, 'Shutting down');
+        await server.close();
+        await shutdownTelemetry();
+        process.exit(0);
+    }
+
+    process.once('SIGINT', () => shutdown('SIGINT'));
+    process.once('SIGTERM', () => shutdown('SIGTERM'));
 }
