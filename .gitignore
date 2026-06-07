@@ -22,4 +22,4 @@ test/test-report.json
 *.sln
 
 # Env configurations containing credentials
-.env*
+.env.prod
