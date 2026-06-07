@@ -19,7 +19,7 @@ export class CreateEnrollmentUseCase {
     ) {}
 
     async execute(data?: CreateEnrollmentRequest | null): Promise<EnrollmentDTO> {
-        const payload = data ?? {};
+        const payload = (data ?? {}) as Partial<CreateEnrollmentRequest>;
         const memberRaw = payload.member_id;
         const sportRaw = payload.sport_id;
 
