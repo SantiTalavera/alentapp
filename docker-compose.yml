@@ -1,7 +1,8 @@
+name: alentapp-dev
 services:
     db:
         image: postgres:16-alpine
-        container_name: alentapp-db
+        container_name: alentapp-db-dev
         environment:
             POSTGRES_USER: admin
             POSTGRES_PASSWORD: password123
@@ -20,7 +21,7 @@ services:
         build:
             context: .
             dockerfile: packages/api/Dockerfile
-        container_name: alentapp-api
+        container_name: alentapp-api-dev
         volumes:
             - .:/app
             - /app/node_modules # Protege los binarios del contenedor
@@ -44,7 +45,7 @@ services:
         build:
             context: .
             dockerfile: packages/web/Dockerfile
-        container_name: alentapp-web
+        container_name: alentapp-web-dev
         environment:
             - CHOKIDAR_USEPOLLING=true
             - WATCHPACK_POLLING=true

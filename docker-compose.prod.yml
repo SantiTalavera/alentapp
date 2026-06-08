@@ -1,3 +1,4 @@
+name: alentapp-prod
 services:
   db:
     image: postgres:16-alpine
@@ -35,6 +36,7 @@ services:
     build:
       context: .
       dockerfile: packages/api/Dockerfile.prod
+      target: runtime
     container_name: alentapp-api-prod
     env_file:
       - .env.prod
@@ -46,6 +48,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      api-migrate:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -69,6 +73,41 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api-migrate:
+    image: alentapp-api-migrate-prod:latest
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile.prod
+      target: migrate
+    container_name: alentapp-api-migrate-prod
+    env_file:
+      - .env.prod
+    networks:
+      - alentapp-prod-net
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+        reservations:
+          memory: 256M
     logging:
       driver: "json-file"
       options:
