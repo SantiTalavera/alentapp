@@ -1,17 +1,23 @@
 # ==========================================
-# Etapa 1: Instalar dependencias de producción
+# Etapa 1: Instalar dependencias de producción (aislado de web y root)
 # ==========================================
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-# Copiar configuración de workspaces de la raíz y package.json de cada paquete
-COPY package*.json ./
-COPY packages/api/package*.json ./packages/api/
-COPY packages/shared/package*.json ./packages/shared/
-COPY packages/web/package*.json ./packages/web/
+# Se copia SOLO el package.json de api (sin root ni web).
+# Esto evita que npm instale typescript, react-dom, chart.js y otras
+# deps del workspace root/web que filtran al node_modules final.
+COPY packages/api/package.json ./package.json
+COPY packages/shared/ ./packages/shared/
 
-# Instalar únicamente dependencias de runtime para el monorepo
-RUN npm ci --omit=dev
+# npm install directamente en /app con el package.json de la api.
+# Sin workspace root → sin deps contaminantes de web.
+# --omit=dev      → 0 devDependencies
+# --omit=optional → excluye peerDeps opcionales de @electric-sql/pglite
+#                   (react-dom, chart.js, fast-check, remeda, hono — solo
+#                    necesarias para el modo WebAssembly/Browser de pglite,
+#                    no para el servidor Node.js)
+RUN npm install --omit=dev --omit=optional --ignore-scripts
 
 # ==========================================
 # Etapa 2: Compilar el código fuente (TypeScript/Prisma)
