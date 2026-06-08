@@ -44,7 +44,16 @@ RUN npx prisma generate --schema=packages/api/prisma/schema.prisma
 RUN npx tsc --project packages/api/tsconfig.json
 
 # ==========================================
-# Etapa 3: Imagen final de ejecución para Producción (Runtime)
+# Etapa 3: Migraciones de base de datos
+# ==========================================
+FROM build AS migrate
+WORKDIR /app
+ENV NODE_ENV=production
+
+CMD ["node", "node_modules/.bin/prisma", "migrate", "deploy", "--config", "packages/api/prisma.config.ts"]
+
+# ==========================================
+# Etapa 4: Imagen final de ejecución para Producción (Runtime)
 # ==========================================
 FROM node:22-alpine AS runtime
 WORKDIR /app
@@ -62,16 +71,7 @@ COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/packages/api/dist ./dist
 COPY --from=build --chown=node:node /app/packages/api/src/generated/client ./dist/generated/client
 COPY --from=build --chown=node:node /app/packages/api/package.json ./package.json
-COPY --from=build --chown=node:node /app/packages/api/prisma ./prisma
 COPY --from=build --chown=node:node /app/packages/shared ./packages/shared
-
-# Copiar el binario de Prisma CLI desde la etapa build (necesario para migrate deploy)
-COPY --from=build --chown=node:node /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-COPY --from=build --chown=node:node /app/node_modules/prisma ./node_modules/prisma
-
-# Copiar prisma.config.ts y su dependencia dotenv (Prisma 7: la URL de conexión va en el config)
-COPY --from=build --chown=node:node /app/packages/api/prisma.config.ts ./prisma.config.ts
-COPY --from=build --chown=node:node /app/node_modules/dotenv ./node_modules/dotenv
 
 # Copiar y dar permisos al entrypoint
 COPY --chown=node:node packages/api/entrypoint.sh ./entrypoint.sh
@@ -88,5 +88,5 @@ EXPOSE 9464
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
   CMD wget -q --spider http://127.0.0.1:3000/ || exit 1
 
-# Ejecutar migraciones y luego iniciar la aplicación
+# Iniciar la aplicación. Las migraciones corren en el target migrate.
 ENTRYPOINT ["./entrypoint.sh"]
